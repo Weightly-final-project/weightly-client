@@ -1,7 +1,7 @@
 import { CameraView, CameraType, useCameraPermissions, CameraCapturedPicture } from 'expo-camera';
 import { useRef, useState } from 'react';
 import { Button, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import axios from 'axios';
+import { Icon } from 'react-native-elements';
 
 export default function App() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -80,11 +80,12 @@ export default function App() {
     <View style={styles.container}>
       <CameraView style={styles.camera} ref={cameraRef} facing={facing}>
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-            <Text style={styles.text}>Flip Camera</Text>
-          </TouchableOpacity>
+        <View></View>
           <TouchableOpacity style={styles.button} onPress={takePicture}>
-            <Text style={styles.text}>Take Picture</Text>
+          <Icon name='circle' type='material' color='white' size={100}/>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+          <Icon style={{transform: [{ rotate: "90deg" }]}} name='autorenew' type='material' color='white' size={50}/>
           </TouchableOpacity>
         </View>
       </CameraView>
@@ -102,23 +103,23 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   camera: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     flex: 1,
   },
   buttonContainer: {
     flex: 1,
     flexDirection: 'row',
     backgroundColor: 'transparent',
-    margin: 64,
+    justifyContent: 'space-around',
+    marginTop: 64,
+    marginBottom: 64,
+    marginLeft: 0,
+    marginRight: 0,
   },
   button: {
-    flex: 1,
-    alignSelf: 'flex-end',
     alignItems: 'center',
-  },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-  },
+    flexDirection: 'row',
+  }
 });
 
