@@ -70,7 +70,7 @@ export default function App() {
 
   const takePicture = async () => {
     if (cameraRef.current) {
-      const photo = await cameraRef.current.takePictureAsync();
+      const photo = await cameraRef.current.takePictureAsync({exif: true});
       console.log(photo);
       setPictureData(photo);
     }
