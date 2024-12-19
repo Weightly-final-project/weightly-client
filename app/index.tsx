@@ -36,7 +36,7 @@ export default function App() {
       });
 
       try {
-        const response = await fetch('http://192.168.1.239:8000/predict', {
+        const response = await fetch('http://192.168.167.165:8000/predict', {
           method: 'POST',
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -46,6 +46,7 @@ export default function App() {
   
         const result = await response.json();
         console.log(result);
+        setPictureData({width: PictureData.width, height: PictureData.height, uri: `data:image/png;base64,${result.image}`});
         setPictureStatus('Picture sent!');
       } catch (error) {
         console.error('Error sending the request:', error);
@@ -57,7 +58,7 @@ export default function App() {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>{pictureStatus}</Text>
-        <Image source={{ uri: PictureData.uri }} style={styles.camera} />
+        <Image source={{ uri: PictureData.uri }} style={styles.image} />
         <Button onPress={() => sendPicture()} title="Send Picture" />
         <Button onPress={() => setPictureData(undefined)} title="Take another picture" />
       </View>
@@ -106,6 +107,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     flex: 1,
+  },
+  image: {
+    aspectRatio: 13/9,
+    width: 500,
+    marginLeft: -65,
   },
   buttonContainer: {
     flex: 1,
