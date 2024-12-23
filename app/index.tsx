@@ -112,7 +112,7 @@ export default function App() {
           setPictureData2(undefined);
           setPoints2([]);
         }} title="Retake the picture" />
-          <Button onPress={() => {
+        <Button onPress={() => {
           setPoints2([]);
           setPoints1([]);
         }} title="Reset Points" />
@@ -138,6 +138,9 @@ export default function App() {
 
   return (
     <View style={styles.container}>
+      <Text>
+        Take a picture of the object from the {moveToSecondPicture ? "sides" : "front or back"}
+      </Text>
       <CameraView style={styles.camera} ref={cameraRef} facing={facing}>
         <View style={styles.buttonContainer}>
           <View></View>
