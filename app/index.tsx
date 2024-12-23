@@ -1,8 +1,9 @@
+import React from 'react';
 import { CameraView, CameraType, useCameraPermissions, CameraCapturedPicture } from 'expo-camera';
 import { useEffect, useRef, useState } from 'react';
 import { Button, GestureResponderEvent, Image, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { Accelerometer, AccelerometerMeasurement } from 'expo-sensors';
-import {Subscription} from 'expo-sensors/src/DeviceSensor';
+// import { Accelerometer, AccelerometerMeasurement } from 'expo-sensors';
+// import { Subscription } from 'expo-sensors/src/DeviceSensor';
 import { Icon } from 'react-native-elements';
 
 export default function App() {
@@ -14,39 +15,39 @@ export default function App() {
   const [moveToSecondPicture, setMoveToSecondPicture] = useState<boolean>(false);
   const [points1, setPoints1] = useState<{ x: number; y: number }[]>([]);
   const [points2, setPoints2] = useState<{ x: number; y: number }[]>([]);
-  const [subscription, setSubscription] = useState<Subscription|undefined>(undefined);
-  const [data, setData] = useState<AccelerometerMeasurement>({
-    x: 0,
-    y: 0,
-    z: 0,
-    timestamp: 0,
-  });
+  // const [subscription, setSubscription] = useState<Subscription | undefined>(undefined);
+  // const [data, setData] = useState<AccelerometerMeasurement>({
+  //   x: 0,
+  //   y: 0,
+  //   z: 0,
+  //   timestamp: 0,
+  // });
   const cameraRef = useRef<CameraView>(null);
   const finishFlag = PictureData1 && PictureData2;
   const pointOffset = 93;
-  const _subscribe = () => {
-    setSubscription(
-      Accelerometer.addListener(AccelerometerData => {
-        setData({
-          x: AccelerometerData.x + data.x,
-          y: AccelerometerData.y + data.y,
-          z: AccelerometerData.z + data.z,
-          timestamp: AccelerometerData.timestamp
-        });
-      })
-    );
-    Accelerometer.setUpdateInterval(1000);
-  };
+  // const _subscribe = () => {
+  //   setSubscription(
+  //     Accelerometer.addListener(AccelerometerData => {
+  //       setData({
+  //         x: AccelerometerData.x + data.x,
+  //         y: AccelerometerData.y + data.y,
+  //         z: AccelerometerData.z + data.z,
+  //         timestamp: AccelerometerData.timestamp
+  //       });
+  //     })
+  //   );
+  //   Accelerometer.setUpdateInterval(1000);
+  // };
 
-  const _unsubscribe = () => {
-    subscription && subscription.remove();
-    setSubscription(undefined);
-  };
+  // const _unsubscribe = () => {
+  //   subscription && subscription.remove();
+  //   setSubscription(undefined);
+  // };
 
-  useEffect(() => {
-    _subscribe();
-    return () => _unsubscribe();
-  }, []);
+  // useEffect(() => {
+  //   _subscribe();
+  //   return () => _unsubscribe();
+  // }, []);
 
   if (!permission) {
     // Camera permissions are still loading.
@@ -172,7 +173,7 @@ export default function App() {
     <View style={styles.container}>
       <Text>
         Take a picture of the object from the {moveToSecondPicture ? "sides\n" : "front or back\n"}
-        x: {`${data.x.toFixed(2)}\n`} y: {`${data.y.toFixed(2)}\n`} z: {`${data.z.toFixed(2)}\n`}
+        {/* x: {`${data.x.toFixed(2)}\n`} y: {`${data.y.toFixed(2)}\n`} z: {`${data.z.toFixed(2)}\n`} */}
       </Text>
       <CameraView style={styles.camera} ref={cameraRef} facing={facing}>
         <View style={styles.buttonContainer}>
