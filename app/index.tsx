@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CameraView, CameraType, useCameraPermissions, CameraCapturedPicture } from 'expo-camera';
-import { useEffect, useRef, useState } from 'react';
-import { Button, GestureResponderEvent, Image, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Button, GestureResponderEvent, Image, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View, Dimensions } from 'react-native';
 // import { Accelerometer, AccelerometerMeasurement } from 'expo-sensors';
 // import { Subscription } from 'expo-sensors/src/DeviceSensor';
 import { Icon } from 'react-native-elements';
+
+
+const windowWidth = Dimensions.get('window').width;
+const windowHeight = Dimensions.get('window').height;
 
 export default function App() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -24,7 +28,6 @@ export default function App() {
   // });
   const cameraRef = useRef<CameraView>(null);
   const finishFlag = PictureData1 && PictureData2;
-  const pointOffset = 93;
   // const _subscribe = () => {
   //   setSubscription(
   //     Accelerometer.addListener(AccelerometerData => {
@@ -108,7 +111,7 @@ export default function App() {
   ) => {
     if (pointsArray.length >= 4) return;
     const { locationX, locationY } = event.nativeEvent;
-    setPoints([...pointsArray, { x: locationX - pointOffset, y: locationY }]);
+    setPoints([...pointsArray, { x: locationX, y: locationY }]);
   }
 
   if (PictureData1 && !PictureData2 && !moveToSecondPicture) {
@@ -173,9 +176,10 @@ export default function App() {
     <View style={styles.container}>
       <Text>
         Take a picture of the object from the {moveToSecondPicture ? "sides\n" : "front or back\n"}
-        {/* x: {`${data.x.toFixed(2)}\n`} y: {`${data.y.toFixed(2)}\n`} z: {`${data.z.toFixed(2)}\n`} */}
+        x: 0.00{`\n`}y: 0.00{`\n`}z: 0.00{`\n`}
+        {/* x: {`${data.x.toFixed(2)}\n`}y: {`${data.y.toFixed(2)}\n`}z: {`${data.z.toFixed(2)}\n`} */}
       </Text>
-      <CameraView style={styles.camera} ref={cameraRef} facing={facing}>
+      <CameraView style={styles.camera} ref={cameraRef} facing={facing} ratio='16:9'>
         <View style={styles.buttonContainer}>
           <View></View>
           <TouchableOpacity style={styles.button} onPress={takePicture}>
@@ -202,12 +206,17 @@ const styles = StyleSheet.create({
   camera: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    flex: 1,
+    alignSelf: 'center',
+    width: windowWidth,
+    height: windowHeight - 70,
   },
   image: {
-    aspectRatio: 13.7 / 9,
-    width: 500,
-    marginLeft: -65,
+    margin: 5,
+    width: windowWidth,
+    height: windowHeight / 2.5,
+    alignSelf: 'center',
+    objectFit: 'contain',
+    backgroundColor: 'black',
   },
   buttonContainer: {
     flex: 1,
