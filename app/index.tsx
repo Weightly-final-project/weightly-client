@@ -27,6 +27,8 @@ export default function App() {
   //   timestamp: 0,
   // });
   const cameraRef = useRef<CameraView>(null);
+  const image1Ref = useRef<Image>(null);
+  const image2Ref = useRef<Image>(null);
   const finishFlag = PictureData1 && PictureData2;
   // const _subscribe = () => {
   //   setSubscription(
@@ -67,6 +69,34 @@ export default function App() {
     );
   }
 
+const convertScreenToImageCoords = (
+  screenX: number,
+  screenY: number,
+  screenWidth: number,
+  screenHeight: number,
+  imageWidth: number,
+  imageHeight: number
+): { x: number; y: number } => {
+
+  const imageAspectRatio = imageWidth / imageHeight;
+  const imageHeightRatio = screenHeight/2.5;
+
+  const scaledImageWidth = Math.min(imageAspectRatio*imageHeightRatio, screenWidth);
+  const scaledImageHeight = scaledImageWidth / imageAspectRatio;
+  const offsetX = (screenWidth - scaledImageWidth) / 2;
+  const offsetY = (imageHeightRatio - scaledImageHeight) / 2;
+
+  // Clamp the screen coordinates to the image display area
+  const clampedScreenX = Math.max(offsetX, Math.min(screenX, offsetX + scaledImageWidth));
+  const clampedScreenY = Math.max(offsetY, Math.min(screenY, offsetY + scaledImageHeight));
+
+  // Convert clamped coordinates
+  const x = Math.round((clampedScreenX - offsetX) * (imageWidth / scaledImageWidth));
+  const y = Math.round((clampedScreenY - offsetY) * (imageHeight / scaledImageHeight));
+
+  return { x, y };
+};
+  
   const sendPicture = async () => {
     if (finishFlag) {
       const formData = new FormData();
@@ -81,8 +111,11 @@ export default function App() {
         name: 'image2.jpg',
         type: 'image/jpeg',
       });
-      formData.append('points1', JSON.stringify(points1));
-      formData.append('points2', JSON.stringify(points2));
+
+      const points1_normalized = points1.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData1.width, PictureData1.height));
+      const points2_normalized = points2.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData2.width, PictureData2.height));
+      formData.append('points1', JSON.stringify(points1_normalized));
+      formData.append('points2', JSON.stringify(points2_normalized));
 
       try {
         const response = await fetch('http://192.168.1.239:8000/predict', {
@@ -129,7 +162,7 @@ export default function App() {
         <Text style={styles.message}>{pictureStatus}</Text>
         <TouchableWithoutFeedback onPress={(e) => handlePress(e, setPoints1, points1)}>
           <View>
-            <Image source={{ uri: PictureData1.uri }} style={styles.image} />
+            <Image ref={image1Ref} source={{ uri: PictureData1.uri }} style={styles.image} />
             {points1.map((point, i) => (
               <View key={i} style={[styles.pointMarker, { top: point.y, left: point.x }]} />
             ))}
@@ -137,7 +170,7 @@ export default function App() {
         </TouchableWithoutFeedback>
         <TouchableWithoutFeedback onPress={(e) => handlePress(e, setPoints2, points2)}>
           <View>
-            <Image source={{ uri: PictureData2.uri }} style={styles.image} />
+            <Image ref={image2Ref} source={{ uri: PictureData2.uri }} style={styles.image} />
             {points2.map((point, i) => (
               <View key={i} style={[styles.pointMarker, { top: point.y, left: point.x }]} />
             ))}
@@ -164,6 +197,11 @@ export default function App() {
   const takePicture = async () => {
     if (cameraRef.current) {
       const photo = await cameraRef.current.takePictureAsync({ exif: true });
+      if(photo?.exif?.Orientation === 6) {
+        const temp = photo.width;
+        photo.width = photo.height;
+        photo.height = temp;
+      }
       console.log(photo);
       if (moveToSecondPicture)
         setPictureData2(photo);
