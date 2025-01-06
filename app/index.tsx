@@ -11,7 +11,7 @@ const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
 export default function App() {
-  const [facing, setFacing] = useState<CameraType>('back');
+  // const [facing, setFacing] = useState<CameraType>('back');
   const [pictureStatus, setPictureStatus] = useState<String>('Picture taken!');
   const [PictureData1, setPictureData1] = useState<CameraCapturedPicture | undefined>(undefined);
   const [PictureData2, setPictureData2] = useState<CameraCapturedPicture | undefined>(undefined);
@@ -20,12 +20,18 @@ export default function App() {
   const [points1, setPoints1] = useState<{ x: number; y: number }[]>([]);
   const [points2, setPoints2] = useState<{ x: number; y: number }[]>([]);
   // const [subscription, setSubscription] = useState<Subscription | undefined>(undefined);
-  // const [data, setData] = useState<AccelerometerMeasurement>({
+  // const [distence, setDistence] = useState<AccelerometerMeasurement>({
   //   x: 0,
   //   y: 0,
   //   z: 0,
   //   timestamp: 0,
   // });
+  // let currData = {
+  //   x: 0,
+  //   y: 0,
+  //   z: 0,
+  //   timestamp: 0,
+  // } as AccelerometerMeasurement;
   const cameraRef = useRef<CameraView>(null);
   const image1Ref = useRef<Image>(null);
   const image2Ref = useRef<Image>(null);
@@ -33,22 +39,29 @@ export default function App() {
   // const _subscribe = () => {
   //   setSubscription(
   //     Accelerometer.addListener(AccelerometerData => {
-  //       setData({
-  //         x: AccelerometerData.x + data.x,
-  //         y: AccelerometerData.y + data.y,
-  //         z: AccelerometerData.z + data.z,
-  //         timestamp: AccelerometerData.timestamp
+  //       console.log(AccelerometerData);
+  //       const AccelerometerDataParsed = {
+  //         x: AccelerometerData.x > 0.3 ? AccelerometerData.x : 0,
+  //         y: AccelerometerData.y > 0.3 ? AccelerometerData.y : 0,
+  //         z: AccelerometerData.z > 0.3 ? AccelerometerData.z : 0,
+  //         timestamp: AccelerometerData.timestamp,
+  //       }
+  //       // console.log(AccelerometerDataParsed, currData);
+  //       setDistence({
+  //         x: (AccelerometerDataParsed.x - currData.x)*9.81*(0.2**2)/2 + distence.x,
+  //         y: (AccelerometerDataParsed.y - currData.y)*9.81*(0.2**2)/2 + distence.y,
+  //         z: (AccelerometerDataParsed.z - currData.z)*9.81*(0.2**2)/2 + distence.z,
+  //         timestamp: AccelerometerDataParsed.timestamp,
   //       });
+  //       currData = AccelerometerDataParsed;
   //     })
   //   );
-  //   Accelerometer.setUpdateInterval(1000);
   // };
 
   // const _unsubscribe = () => {
   //   subscription && subscription.remove();
   //   setSubscription(undefined);
   // };
-
   // useEffect(() => {
   //   _subscribe();
   //   return () => _unsubscribe();
@@ -118,7 +131,7 @@ const convertScreenToImageCoords = (
       formData.append('points2', JSON.stringify(points2_normalized));
 
       try {
-        const response = await fetch('http://192.168.1.239:8000/predict', {
+        const response = await fetch('http://30.30.11.97:8000/predict', {
           method: 'POST',
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -190,9 +203,9 @@ const convertScreenToImageCoords = (
   }
 
 
-  function toggleCameraFacing() {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-  }
+  // function toggleCameraFacing() {
+  //   setFacing(current => (current === 'back' ? 'front' : 'back'));
+  // }
 
   const takePicture = async () => {
     if (cameraRef.current) {
@@ -214,18 +227,19 @@ const convertScreenToImageCoords = (
     <View style={styles.container}>
       <Text>
         Take a picture of the object from the {moveToSecondPicture ? "sides\n" : "front or back\n"}
-        x: 0.00{`\n`}y: 0.00{`\n`}z: 0.00{`\n`}
-        {/* x: {`${data.x.toFixed(2)}\n`}y: {`${data.y.toFixed(2)}\n`}z: {`${data.z.toFixed(2)}\n`} */}
+        {/* x: 0.00{`\n`}y: 0.00{`\n`}z: 0.00{`\n`} */}
+        {/* x: {`${(distence.x * 100).toFixed(2)}\n`}y: {`${(distence.y*100).toFixed(2)}\n`}z: {`${(distence.z*100).toFixed(2)}\n`} */}
       </Text>
-      <CameraView style={styles.camera} ref={cameraRef} facing={facing} ratio='16:9'>
+      {/* <CameraView style={styles.camera} ref={cameraRef} facing={facing} ratio='16:9'> */}
+      <CameraView style={styles.camera} ref={cameraRef} ratio='16:9'>
         <View style={styles.buttonContainer}>
-          <View></View>
+          {/* <View></View> */}
           <TouchableOpacity style={styles.button} onPress={takePicture}>
             <Icon name='circle' type='material' color='white' size={100} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+          {/* <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
             <Icon style={{ transform: [{ rotate: "90deg" }] }} name='autorenew' type='material' color='white' size={50} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </CameraView>
     </View>
