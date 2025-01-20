@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { CameraView, CameraType, useCameraPermissions, CameraCapturedPicture } from 'expo-camera';
 import { useRef, useState } from 'react';
+// import { useCameraDevice, useCameraPermission, Camera, PhotoFile } from 'react-native-vision-camera';
 import { Button, GestureResponderEvent, Image, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View, Dimensions } from 'react-native';
 // import { Accelerometer, AccelerometerMeasurement } from 'expo-sensors';
 // import { Subscription } from 'expo-sensors/src/DeviceSensor';
 import { Icon } from 'react-native-elements';
 
+import { uploadFile } from './s3';
 
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
@@ -13,9 +15,12 @@ const windowHeight = Dimensions.get('window').height;
 export default function App() {
   // const [facing, setFacing] = useState<CameraType>('back');
   const [pictureStatus, setPictureStatus] = useState<String>('Picture taken!');
+  // const [PictureData1, setPictureData1] = useState<PhotoFile | undefined>(undefined);
+  // const [PictureData2, setPictureData2] = useState<PhotoFile | undefined>(undefined);
+  // const {hasPermission, requestPermission} = useCameraPermission();
   const [PictureData1, setPictureData1] = useState<CameraCapturedPicture | undefined>(undefined);
   const [PictureData2, setPictureData2] = useState<CameraCapturedPicture | undefined>(undefined);
-  const [permission, requestPermission] = useCameraPermissions();
+  const [permission, requestPermissions] = useCameraPermissions();
   const [moveToSecondPicture, setMoveToSecondPicture] = useState<boolean>(false);
   const [points1, setPoints1] = useState<{ x: number; y: number }[]>([]);
   const [points2, setPoints2] = useState<{ x: number; y: number }[]>([]);
@@ -32,6 +37,8 @@ export default function App() {
   //   z: 0,
   //   timestamp: 0,
   // } as AccelerometerMeasurement;
+  // const device = useCameraDevice('back');
+  // const cameraRef = useRef<Camera>(null);
   const cameraRef = useRef<CameraView>(null);
   const image1Ref = useRef<Image>(null);
   const image2Ref = useRef<Image>(null);
@@ -67,85 +74,115 @@ export default function App() {
   //   return () => _unsubscribe();
   // }, []);
 
-  if (!permission) {
-    // Camera permissions are still loading.
-    return <View />;
-  }
+  // if(!device){
+  //   return (
+  //     <View style={styles.container}>
+  //       <Text style={styles.message}>Camera not found</Text>
+  //     </View>
+  //   );
+  // }
+  if (!permission)
+    return <View></View>
 
   if (!permission.granted) {
-    // Camera permissions are not granted yet.
     return (
       <View style={styles.container}>
         <Text style={styles.message}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="grant permission" />
+        <Button onPress={requestPermissions} title="grant permission" />
       </View>
     );
   }
 
-const convertScreenToImageCoords = (
-  screenX: number,
-  screenY: number,
-  screenWidth: number,
-  screenHeight: number,
-  imageWidth: number,
-  imageHeight: number
-): { x: number; y: number } => {
+  // if (!hasPermission) {
+  //   // Camera permissions are not granted yet.
+  //   return (
+  //     <View style={styles.container}>
+  //       <Text style={styles.message}>We need your permission to show the camera</Text>
+  //       <Button onPress={requestPermission} title="grant permission" />
+  //     </View>
+  //   );
+  // }
 
-  const imageAspectRatio = imageWidth / imageHeight;
-  const imageHeightRatio = screenHeight/2.5;
+  const convertScreenToImageCoords = (
+    screenX: number,
+    screenY: number,
+    screenWidth: number,
+    screenHeight: number,
+    imageWidth: number,
+    imageHeight: number
+  ): { x: number; y: number } => {
 
-  const scaledImageWidth = Math.min(imageAspectRatio*imageHeightRatio, screenWidth);
-  const scaledImageHeight = scaledImageWidth / imageAspectRatio;
-  const offsetX = (screenWidth - scaledImageWidth) / 2;
-  const offsetY = (imageHeightRatio - scaledImageHeight) / 2;
+    const imageAspectRatio = imageWidth / imageHeight;
+    const imageHeightRatio = screenHeight / 2.5;
 
-  // Clamp the screen coordinates to the image display area
-  const clampedScreenX = Math.max(offsetX, Math.min(screenX, offsetX + scaledImageWidth));
-  const clampedScreenY = Math.max(offsetY, Math.min(screenY, offsetY + scaledImageHeight));
+    const scaledImageWidth = Math.min(imageAspectRatio * imageHeightRatio, screenWidth);
+    const scaledImageHeight = scaledImageWidth / imageAspectRatio;
+    const offsetX = (screenWidth - scaledImageWidth) / 2;
+    const offsetY = (imageHeightRatio - scaledImageHeight) / 2;
 
-  // Convert clamped coordinates
-  const x = Math.round((clampedScreenX - offsetX) * (imageWidth / scaledImageWidth));
-  const y = Math.round((clampedScreenY - offsetY) * (imageHeight / scaledImageHeight));
+    // Clamp the screen coordinates to the image display area
+    const clampedScreenX = Math.max(offsetX, Math.min(screenX, offsetX + scaledImageWidth));
+    const clampedScreenY = Math.max(offsetY, Math.min(screenY, offsetY + scaledImageHeight));
 
-  return { x, y };
-};
-  
+    // Convert clamped coordinates
+    const x = Math.round((clampedScreenX - offsetX) * (imageWidth / scaledImageWidth));
+    const y = Math.round((clampedScreenY - offsetY) * (imageHeight / scaledImageHeight));
+
+    return { x, y };
+  };
+
   const sendPicture = async () => {
     if (finishFlag) {
-      const formData = new FormData();
+      try {
+        const res1 = await uploadFile(PictureData1.uri, 'image1.jpg');
+        const res2 = await uploadFile(PictureData2.uri, 'image2.jpg');
+        console.log(res1, res2);
+        setPictureStatus('Pictures sent!');
+      } catch (e) {
+        console.error(e);
+      }
+      const formData1 = new FormData();
+      const formData2 = new FormData();
       // this run ok only the ide think its an error
-      formData.append('image1', {
+      formData1.append('file', {
         uri: PictureData1.uri,
         name: 'image1.jpg',
         type: 'image/jpeg',
       });
-      formData.append('image2', {
+      formData2.append('file', {
         uri: PictureData2.uri,
         name: 'image2.jpg',
         type: 'image/jpeg',
       });
+      // const points1_normalized = points1.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData1.width, PictureData1.height));
+      // const points2_normalized = points2.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData2.width, PictureData2.height));
+      // formData.append('points1', JSON.stringify(points1_normalized));
+      // formData.append('points2', JSON.stringify(points2_normalized));
+      const sendFile = async (formData: FormData, endPoint: string) => {
+        try {
+          const response = await fetch(`http://192.168.1.239${endPoint}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+            body: formData,
+          });
+          const result = await response.json();
+          console.log(result);
+          return result;
+        } catch (error) {
+          console.error('Error sending the request:', error);
+        }
+      };
 
-      const points1_normalized = points1.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData1.width, PictureData1.height));
-      const points2_normalized = points2.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData2.width, PictureData2.height));
-      formData.append('points1', JSON.stringify(points1_normalized));
-      formData.append('points2', JSON.stringify(points2_normalized));
-
-      try {
-        const response = await fetch('http://30.30.11.97:8000/predict', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          body: formData,
-        });
-
-        const result = await response.json();
-        console.log(result);
-        setPictureData1({ width: PictureData1.width, height: PictureData1.height, uri: `data:image/png;base64,${result.image1}` });
-        setPictureData2({ width: PictureData2.width, height: PictureData2.height, uri: `data:image/png;base64,${result.image2}` });
-        setPictureStatus('Pictures sent!');
-      } catch (error) {
-        console.error('Error sending the request:', error);
+      const { reference_detected: reference_detected1 } = await sendFile(formData1, '/check_reference');
+      const { reference_detected: reference_detected2 } = await sendFile(formData2, '/check_reference');
+      if(reference_detected1 && reference_detected2){
+          const {annotated_image: annotated_image1} = await sendFile(formData1, '/predict');
+          const {annotated_image: annotated_image2} = await sendFile(formData2, '/predict');
+          setPictureData1({ width: PictureData1.width, height: PictureData1.height, uri: `data:image/png;base64,${annotated_image1}` });
+          setPictureData2({ width: PictureData2.width, height: PictureData2.height, uri: `data:image/png;base64,${annotated_image2}` });
+          setPictureStatus('Pictures sent!');
       }
     }
   };
@@ -209,13 +246,14 @@ const convertScreenToImageCoords = (
 
   const takePicture = async () => {
     if (cameraRef.current) {
+      // const photo = await cameraRef.current.takePhoto();
       const photo = await cameraRef.current.takePictureAsync({ exif: true });
-      if(photo?.exif?.Orientation === 6) {
+      console.log(photo);
+      if (photo?.exif?.Orientation === 6) {
         const temp = photo.width;
         photo.width = photo.height;
         photo.height = temp;
       }
-      console.log(photo);
       if (moveToSecondPicture)
         setPictureData2(photo);
       else
@@ -230,8 +268,8 @@ const convertScreenToImageCoords = (
         {/* x: 0.00{`\n`}y: 0.00{`\n`}z: 0.00{`\n`} */}
         {/* x: {`${(distence.x * 100).toFixed(2)}\n`}y: {`${(distence.y*100).toFixed(2)}\n`}z: {`${(distence.z*100).toFixed(2)}\n`} */}
       </Text>
-      {/* <CameraView style={styles.camera} ref={cameraRef} facing={facing} ratio='16:9'> */}
       <CameraView style={styles.camera} ref={cameraRef} ratio='16:9'>
+        {/* <Camera style={styles.camera} ref={cameraRef} photo={true} isActive={true} device={device}> */}
         <View style={styles.buttonContainer}>
           {/* <View></View> */}
           <TouchableOpacity style={styles.button} onPress={takePicture}>
@@ -241,6 +279,7 @@ const convertScreenToImageCoords = (
             <Icon style={{ transform: [{ rotate: "90deg" }] }} name='autorenew' type='material' color='white' size={50} />
           </TouchableOpacity> */}
         </View>
+        {/* </Camera> */}
       </CameraView>
     </View>
   );
