@@ -8,7 +8,7 @@ AWS.config.update({
 
 const client = new AWS.S3();
 
-const uploadFile = async (uri: string, key: string = 'image1.jpg', bucketName: string = 'rbuixcube') => {
+const uploadFile = async (uri: string, key: string = 'image1.jpg', bucketName: string = 'weighlty') => {
     const imageData = await fetch(uri);
     const blob = await imageData.blob();
     const res = await client.upload({

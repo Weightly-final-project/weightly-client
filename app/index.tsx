@@ -12,6 +12,10 @@ import { uploadFile } from './s3';
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
+type FormDataSend = {
+  "s3_model_uri": string,
+  "s3_image_uri"?: string,
+};
 export default function App() {
   // const [facing, setFacing] = useState<CameraType>('back');
   const [pictureStatus, setPictureStatus] = useState<String>('Picture taken!');
@@ -133,39 +137,52 @@ export default function App() {
 
   const sendPicture = async () => {
     if (finishFlag) {
+      let formData1: FormDataSend = {
+        "s3_model_uri": "s3://weighlty/best.pt"
+      };
+      let formData2: FormDataSend = {
+        "s3_model_uri": "s3://weighlty/best.pt"
+      };
       try {
         const res1 = await uploadFile(PictureData1.uri, 'image1.jpg');
         const res2 = await uploadFile(PictureData2.uri, 'image2.jpg');
+        formData1 = {
+          ...formData1,
+          "s3_image_uri": `s3://weighlty/${res1.Key}`
+        }
+        formData2 = {
+          ...formData2,
+          "s3_image_uri": `s3://weighlty/${res2.Key}`
+        }
         console.log(res1, res2);
         setPictureStatus('Pictures sent!');
       } catch (e) {
         console.error(e);
+        return;
       }
-      const formData1 = new FormData();
-      const formData2 = new FormData();
       // this run ok only the ide think its an error
-      formData1.append('file', {
-        uri: PictureData1.uri,
-        name: 'image1.jpg',
-        type: 'image/jpeg',
-      });
-      formData2.append('file', {
-        uri: PictureData2.uri,
-        name: 'image2.jpg',
-        type: 'image/jpeg',
-      });
+      // formData1.append('file', {
+      //   uri: PictureData1.uri,
+      //   name: 'image1.jpg',
+      //   type: 'image/jpeg',
+      // });
+      // formData2.append('file', {
+      //   uri: PictureData2.uri,
+      //   name: 'image2.jpg',
+      //   type: 'image/jpeg',
+      // });
       // const points1_normalized = points1.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData1.width, PictureData1.height));
       // const points2_normalized = points2.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData2.width, PictureData2.height));
       // formData.append('points1', JSON.stringify(points1_normalized));
       // formData.append('points2', JSON.stringify(points2_normalized));
-      const sendFile = async (formData: FormData, endPoint: string) => {
+      const sendFile = async (formData: FormDataSend, endPoint: string) => {
         try {
-          const response = await fetch(`http://192.168.1.239${endPoint}`, {
+          const response = await fetch(`http://192.168.1.239:8000${endPoint}`, {
             method: 'POST',
             headers: {
-              'Content-Type': 'multipart/form-data',
+              'Content-Type': 'application/json'
             },
-            body: formData,
+            body: JSON.stringify(formData),
           });
           const result = await response.json();
           console.log(result);
@@ -175,15 +192,15 @@ export default function App() {
         }
       };
 
-      const { reference_detected: reference_detected1 } = await sendFile(formData1, '/check_reference');
-      const { reference_detected: reference_detected2 } = await sendFile(formData2, '/check_reference');
-      if(reference_detected1 && reference_detected2){
+      // const { reference_detected: reference_detected1 } = await sendFile(formData1, '/check_reference');
+      // const { reference_detected: reference_detected2 } = await sendFile(formData2, '/check_reference');
+      // if(reference_detected1 && reference_detected2){
           const {annotated_image: annotated_image1} = await sendFile(formData1, '/predict');
           const {annotated_image: annotated_image2} = await sendFile(formData2, '/predict');
           setPictureData1({ width: PictureData1.width, height: PictureData1.height, uri: `data:image/png;base64,${annotated_image1}` });
           setPictureData2({ width: PictureData2.width, height: PictureData2.height, uri: `data:image/png;base64,${annotated_image2}` });
           setPictureStatus('Pictures sent!');
-      }
+      // }
     }
   };
 
