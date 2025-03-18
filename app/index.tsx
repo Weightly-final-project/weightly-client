@@ -16,6 +16,7 @@ type FormDataSend = {
   "image_s3_uri"?: string,
   "user"?: string
   "prediction"?: []
+  "annotated_s3_uri"?: string
 };
 
 const endpointMap: { [key: string]: string } = {
@@ -35,6 +36,8 @@ export default function App() {
   const [moveToSecondPicture, setMoveToSecondPicture] = useState<boolean>(false);
   const [points1, setPoints1] = useState<{ x: number; y: number }[]>([]);
   const [points2, setPoints2] = useState<{ x: number; y: number }[]>([]);
+  const [prediction1, setPrediction1] = useState<[]>([]);
+  const [prediction2, setPrediction2] = useState<[]>([]);
   // const [subscription, setSubscription] = useState<Subscription | undefined>(undefined);
   // const [distence, setDistence] = useState<AccelerometerMeasurement>({
   //   x: 0,
@@ -142,6 +145,24 @@ export default function App() {
     return { x, y };
   };
 
+  const sendFile = async (formData: FormDataSend, endPoint: string) => {
+    console.log(formData);
+    try {
+      const response = await fetch(endpointMap[endPoint], {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData),
+      });
+      const result = await response.json();
+      console.log(result);
+      return result;
+    } catch (error) {
+      console.error('Error sending the request:', error);
+    }
+  };
+
   const sendPicture = async () => {
     if (finishFlag) {
       let formData1: FormDataSend = {
@@ -182,29 +203,15 @@ export default function App() {
       // const points2_normalized = points2.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData2.width, PictureData2.height));
       // formData.append('points1', JSON.stringify(points1_normalized));
       // formData.append('points2', JSON.stringify(points2_normalized));
-      const sendFile = async (formData: FormDataSend, endPoint: string) => {
-        console.log(formData);
-        try {
-          const response = await fetch(endpointMap[endPoint], {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData),
-          });
-          const result = await response.json();
-          console.log(result);
-          return result;
-        } catch (error) {
-          console.error('Error sending the request:', error);
-        }
-      };
 
       // const { reference_detected: reference_detected1 } = await sendFile(formData1, '/check_reference');
       // const { reference_detected: reference_detected2 } = await sendFile(formData2, '/check_reference');
       // if(reference_detected1 && reference_detected2){
       const prediction1 = await sendFile(formData1, "predict");
       const prediction2 = await sendFile(formData2, "predict");
+
+      setPrediction1(prediction1.predictions || []);
+      setPrediction2(prediction2.predictions || []);
 
       await sendFile(prediction1, "output_image");
       await sendFile(prediction2, "output_image");
@@ -270,6 +277,20 @@ export default function App() {
           setPoints2([]);
           setPoints1([]);
         }} title="Reset Points" />
+        <Button onPress={() => {
+          sendFile({ 
+            user: "test user", 
+            image_s3_uri: "s3://weighlty/image1.jpg", 
+            prediction: prediction1, 
+            annotated_s3_uri: "s3://weighlty/annotated_image1.jpg"
+          }, "dynmo_create");
+          sendFile({ 
+            user: "test user", 
+            image_s3_uri: "s3://weighlty/image2.jpg", 
+            prediction: prediction2, 
+            annotated_s3_uri: "s3://weighlty/annotated_image2.jpg"
+          }, "dynmo_create");
+        }} title="Save Result" />
       </View>
     );
   }
@@ -339,7 +360,7 @@ const styles = StyleSheet.create({
   image: {
     margin: 5,
     width: windowWidth,
-    height: windowHeight / 2.5,
+    height: windowHeight / 2.7,
     alignSelf: 'center',
     objectFit: 'contain',
     backgroundColor: 'black',
