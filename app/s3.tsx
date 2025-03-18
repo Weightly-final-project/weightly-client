@@ -19,4 +19,33 @@ const uploadFile = async (uri: string, key: string = 'image1.jpg', bucketName: s
     return res;
 };
 
-export { client, uploadFile };
+const getFile = async (key: string = 'image1.jpg', bucketName: string = 'weighlty') => {
+    try {
+        const params = {
+            Bucket: bucketName,
+            Key: key,
+        };
+
+        // Get the file metadata first to check size
+        const headData = await client.headObject(params).promise();
+        const contentType = headData.ContentType || 'application/octet-stream';
+        
+        // Use presigned URL for larger files
+        const signedUrl = client.getSignedUrl('getObject', {
+            Bucket: bucketName,
+            Key: key,
+            Expires: 60 * 24 * 60 // URL expires in 24 hours
+        });
+        
+        return {
+            url: signedUrl,
+            contentType: contentType,
+            // No data property - will be loaded via URL
+        };
+    } catch (error) {
+        console.error('Error getting file from S3:', error);
+        throw error;
+    }
+};
+
+export { client, uploadFile, getFile };

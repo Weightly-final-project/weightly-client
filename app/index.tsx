@@ -7,14 +7,21 @@ import { Button, GestureResponderEvent, Image, StyleSheet, Text, TouchableOpacit
 // import { Subscription } from 'expo-sensors/src/DeviceSensor';
 import { Icon } from 'react-native-elements';
 
-import { uploadFile } from './s3';
+import { uploadFile, getFile } from './s3';
 
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
 type FormDataSend = {
-  "s3_model_uri": string,
-  "s3_image_uri"?: string,
+  "image_s3_uri"?: string,
+  "user"?: string
+  "prediction"?: []
+};
+
+const endpointMap: { [key: string]: string } = {
+  "predict": "https://kg6d74p2xcfjejhqfucddvfjye0ktpzr.lambda-url.eu-west-1.on.aws/",
+  "output_image": "https://wexmozjmbvb2knoqpkltzazu3y0nlixp.lambda-url.eu-west-1.on.aws/",
+  "dynmo_create": "https://s6oeijufprvfccw3duv7xunfv40iydre.lambda-url.eu-west-1.on.aws/"
 };
 export default function App() {
   // const [facing, setFacing] = useState<CameraType>('back');
@@ -138,21 +145,21 @@ export default function App() {
   const sendPicture = async () => {
     if (finishFlag) {
       let formData1: FormDataSend = {
-        "s3_model_uri": "s3://weighlty/best.pt"
+        "user": "test user"
       };
       let formData2: FormDataSend = {
-        "s3_model_uri": "s3://weighlty/best.pt"
+        "user": "test user"
       };
       try {
         const res1 = await uploadFile(PictureData1.uri, 'image1.jpg');
         const res2 = await uploadFile(PictureData2.uri, 'image2.jpg');
         formData1 = {
           ...formData1,
-          "s3_image_uri": `s3://weighlty/${res1.Key}`
+          "image_s3_uri": `s3://weighlty/${res1.Key}`
         }
         formData2 = {
           ...formData2,
-          "s3_image_uri": `s3://weighlty/${res2.Key}`
+          "image_s3_uri": `s3://weighlty/${res2.Key}`
         }
         console.log(res1, res2);
         setPictureStatus('Pictures sent!');
@@ -176,8 +183,9 @@ export default function App() {
       // formData.append('points1', JSON.stringify(points1_normalized));
       // formData.append('points2', JSON.stringify(points2_normalized));
       const sendFile = async (formData: FormDataSend, endPoint: string) => {
+        console.log(formData);
         try {
-          const response = await fetch(`http://192.168.1.239:8000${endPoint}`, {
+          const response = await fetch(endpointMap[endPoint], {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -195,11 +203,21 @@ export default function App() {
       // const { reference_detected: reference_detected1 } = await sendFile(formData1, '/check_reference');
       // const { reference_detected: reference_detected2 } = await sendFile(formData2, '/check_reference');
       // if(reference_detected1 && reference_detected2){
-          const {annotated_image: annotated_image1} = await sendFile(formData1, '/predict');
-          const {annotated_image: annotated_image2} = await sendFile(formData2, '/predict');
-          setPictureData1({ width: PictureData1.width, height: PictureData1.height, uri: `data:image/png;base64,${annotated_image1}` });
-          setPictureData2({ width: PictureData2.width, height: PictureData2.height, uri: `data:image/png;base64,${annotated_image2}` });
-          setPictureStatus('Pictures sent!');
+      const prediction1 = await sendFile(formData1, "predict");
+      const prediction2 = await sendFile(formData2, "predict");
+
+      await sendFile(prediction1, "output_image");
+      await sendFile(prediction2, "output_image");
+
+
+      // download from s3 base64 image
+      const annotated_image1 = await getFile('annotated_image1.jpg', 'weighlty');
+      const annotated_image2 = await getFile('annotated_image2.jpg', 'weighlty');
+
+      console.log(annotated_image1, annotated_image2);
+      setPictureData1({ width: PictureData1.width, height: PictureData1.height, uri: annotated_image1?.url });
+      setPictureData2({ width: PictureData2.width, height: PictureData2.height, uri: annotated_image2?.url });
+      setPictureStatus('Pictures sent!');
       // }
     }
   };
