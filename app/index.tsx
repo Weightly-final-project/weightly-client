@@ -146,7 +146,7 @@ export default function App() {
   };
 
   const sendFile = async (formData: FormDataSend, endPoint: string) => {
-    console.log(formData);
+    // console.log(formData);
     try {
       const response = await fetch(endpointMap[endPoint], {
         method: 'POST',
@@ -156,7 +156,7 @@ export default function App() {
         body: JSON.stringify(formData),
       });
       const result = await response.json();
-      console.log(result);
+      // console.log(result);
       return result;
     } catch (error) {
       console.error('Error sending the request:', error);
@@ -172,8 +172,9 @@ export default function App() {
         "user": "test user"
       };
       try {
-        const res1 = await uploadFile(PictureData1.uri, 'image1.jpg');
-        const res2 = await uploadFile(PictureData2.uri, 'image2.jpg');
+        const res1 = await uploadFile(PictureData1.uri,  `original_images/test-user_${Date.now()}_image1.jpg`);
+        const res2 = await uploadFile(PictureData2.uri, `original_images/test-user_${Date.now()}_image2.jpg`);
+
         formData1 = {
           ...formData1,
           "image_s3_uri": `s3://weighlty/${res1.Key}`
@@ -182,7 +183,7 @@ export default function App() {
           ...formData2,
           "image_s3_uri": `s3://weighlty/${res2.Key}`
         }
-        console.log(res1, res2);
+        // console.log(res1, res2);
         setPictureStatus('Pictures sent!');
       } catch (e) {
         console.error(e);
@@ -210,21 +211,24 @@ export default function App() {
       const prediction1 = await sendFile(formData1, "predict");
       const prediction2 = await sendFile(formData2, "predict");
 
-      setPrediction1(prediction1.predictions || []);
-      setPrediction2(prediction2.predictions || []);
-
-      await sendFile(prediction1, "output_image");
-      await sendFile(prediction2, "output_image");
-
-
-      // download from s3 base64 image
-      const annotated_image1 = await getFile('annotated_image1.jpg', 'weighlty');
-      const annotated_image2 = await getFile('annotated_image2.jpg', 'weighlty');
-
-      console.log(annotated_image1, annotated_image2);
-      setPictureData1({ width: PictureData1.width, height: PictureData1.height, uri: annotated_image1?.url });
-      setPictureData2({ width: PictureData2.width, height: PictureData2.height, uri: annotated_image2?.url });
-      setPictureStatus('Pictures sent!');
+      if(prediction1.predictions && prediction2.predictions)
+      {
+        setPrediction1(prediction1.predictions);
+        setPrediction2(prediction2.predictions);
+  
+        const pred1 = await sendFile(prediction1, "output_image");
+        const pred2 = await sendFile(prediction2, "output_image");
+          
+        if(pred1.annotated_s3_uri && pred2.annotated_s3_uri){
+                  // download from s3 base64 image
+        const annotated_image1 = await getFile(pred1.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
+        const annotated_image2 = await getFile(pred2.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
+  
+        setPictureData1({ width: PictureData1.width, height: PictureData1.height, uri: annotated_image1?.url });
+        setPictureData2({ width: PictureData2.width, height: PictureData2.height, uri: annotated_image2?.url });
+        setPictureStatus('Pictures sent!');
+        }
+      }
       // }
     }
   };
@@ -304,7 +308,7 @@ export default function App() {
     if (cameraRef.current) {
       // const photo = await cameraRef.current.takePhoto();
       const photo = await cameraRef.current.takePictureAsync({ exif: true });
-      console.log(photo);
+      // console.log(photo);
       if (photo?.exif?.Orientation === 6) {
         const temp = photo.width;
         photo.width = photo.height;
