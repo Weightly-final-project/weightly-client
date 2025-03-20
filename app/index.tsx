@@ -48,79 +48,42 @@ export default function HomeScreen() {
     );
   }
 
-  const convertScreenToImageCoords = (
-    screenX: number,
-    screenY: number,
-    screenWidth: number,
-    screenHeight: number,
-    imageWidth: number,
-    imageHeight: number
-  ): { x: number; y: number } => {
+  const sendPicture = async (uri: string) => {
+    try {
+      const res1 = await uploadFile(uri, `original_images/test-user_${Date.now()}_image1.jpg`);
 
-    const imageAspectRatio = imageWidth / imageHeight;
-    const imageHeightRatio = screenHeight / 2.5;
+      const formData1 = {
+        "user": "test user",
+        "image_s3_uri": `s3://weighlty/${res1.Key}`
+      } as const;
 
-    const scaledImageWidth = Math.min(imageAspectRatio * imageHeightRatio, screenWidth);
-    const scaledImageHeight = scaledImageWidth / imageAspectRatio;
-    const offsetX = (screenWidth - scaledImageWidth) / 2;
-    const offsetY = (imageHeightRatio - scaledImageHeight) / 2;
+      setPictureStatus('Pictures sent!');
 
-    // Clamp the screen coordinates to the image display area
-    const clampedScreenX = Math.max(offsetX, Math.min(screenX, offsetX + scaledImageWidth));
-    const clampedScreenY = Math.max(offsetY, Math.min(screenY, offsetY + scaledImageHeight));
+      // Use your hooks instead of sendFile
+      const prediction = await predictMutation.mutateAsync(formData1);
 
-    // Convert clamped coordinates
-    const x = Math.round((clampedScreenX - offsetX) * (imageWidth / scaledImageWidth));
-    const y = Math.round((clampedScreenY - offsetY) * (imageHeight / scaledImageHeight));
+      setPictureStatus('Pictures predicted!');
 
-    return { x, y };
-  };
+      if (prediction.predictions) {
+        if (moveToSecondPicture)
+          setPrediction2(prediction.predictions);
+        else
+          setPrediction1(prediction.predictions);
 
-  const sendPicture = async () => {
-    if (finishFlag) {
+        const pred1 = await outputImageMutation.mutateAsync(prediction);
 
-      try {
-        const res1 = await uploadFile(PictureData1.uri, `original_images/test-user_${Date.now()}_image1.jpg`);
-        const res2 = await uploadFile(PictureData2.uri, `original_images/test-user_${Date.now()}_image2.jpg`);
+        setPictureStatus('Pictures annotated!');
 
-        const formData1 = {
-          "user": "test user",
-          "image_s3_uri": `s3://weighlty/${res1.Key}`
-        } as const;
-
-        const formData2 = {
-          "user": "test user",
-          "image_s3_uri": `s3://weighlty/${res2.Key}`
-        } as const;
-
-        setPictureStatus('Pictures sent!');
-
-        // Use your hooks instead of sendFile
-        const prediction1 = await predictMutation.mutateAsync(formData1);
-        const prediction2 = await predictMutation.mutateAsync(formData2);
-
-        if (prediction1.predictions && prediction2.predictions) {
-          setPrediction1(prediction1.predictions);
-          setPrediction2(prediction2.predictions);
-
-          const pred1 = await outputImageMutation.mutateAsync(prediction1);
-
-          const pred2 = await outputImageMutation.mutateAsync(prediction2);
-
-          if (pred1.annotated_s3_uri && pred2.annotated_s3_uri) {
-            // download from s3 base64 image
-            const annotated_image1 = await getFile(pred1.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
-            const annotated_image2 = await getFile(pred2.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
-
-            setPictureData1({ width: PictureData1.width, height: PictureData1.height, uri: annotated_image1?.url });
-            setPictureData2({ width: PictureData2.width, height: PictureData2.height, uri: annotated_image2?.url });
-            setPictureStatus('Pictures sent!');
-          }
+        if (pred1.annotated_s3_uri) {
+          // download from s3 base64 image
+          const annotated_image1 = await getFile(pred1.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
+          setPictureStatus('Pictures recived!');
+          return annotated_image1?.url;
         }
-      } catch (e) {
-        console.error(e);
-        return;
       }
+    } catch (e) {
+      console.error(e);
+      return;
     }
   };
 
@@ -137,17 +100,22 @@ export default function HomeScreen() {
   if (PictureData1 && !PictureData2 && !moveToSecondPicture) {
     return (
       <View style={styles.container}>
-        <Image source={{ uri: PictureData1.uri }} style={styles.image} />
-        <Button onPress={() => setMoveToSecondPicture(true)} title="Take another picture" />
-        <Button onPress={() => setPictureData1(undefined)} title="Retake the picture" />
+        {outputImageMutation.isLoading || predictMutation.isLoading ?
+          <Text style={styles.message}>Loading...</Text>
+          :
+          <Image source={{ uri: PictureData1.uri }} style={styles.image} />
+        }
+        <Button disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={() => setMoveToSecondPicture(true)} title="Take another picture" />
+        <Button disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={() => setPictureData1(undefined)} title="Retake the picture" />
       </View>
     );
   }
+
   if (finishFlag) {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>{pictureStatus}</Text>
-        <TouchableWithoutFeedback onPress={(e) => handlePress(e, setPoints1, points1)}>
+        <TouchableWithoutFeedback disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={(e) => handlePress(e, setPoints1, points1)}>
           <View>
             <Image ref={image1Ref} source={{ uri: PictureData1.uri }} style={styles.image} />
             {points1.map((point, i) => (
@@ -155,24 +123,28 @@ export default function HomeScreen() {
             ))}
           </View>
         </TouchableWithoutFeedback>
-        <TouchableWithoutFeedback onPress={(e) => handlePress(e, setPoints2, points2)}>
+        <TouchableWithoutFeedback disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={(e) => handlePress(e, setPoints2, points2)}>
           <View>
-            <Image ref={image2Ref} source={{ uri: PictureData2.uri }} style={styles.image} />
+            {outputImageMutation.isLoading || predictMutation.isLoading ?
+              <Text style={styles.message}>Loading...</Text>
+              :
+              <Image ref={image2Ref} source={{ uri: PictureData2.uri }} style={styles.image} />
+            }
             {points2.map((point, i) => (
               <View key={i} style={[styles.pointMarker, { top: point.y, left: point.x }]} />
             ))}
           </View>
         </TouchableWithoutFeedback>
-        <Button onPress={() => sendPicture()} title="Send Picture" />
-        <Button onPress={() => {
+        {/* <Button onPress={() => sendPicture()} title="Send Picture" /> */}
+        <Button disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={() => {
           setPictureData2(undefined);
           setPoints2([]);
         }} title="Retake the picture" />
-        <Button onPress={() => {
+        <Button disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={() => {
           setPoints2([]);
           setPoints1([]);
         }} title="Reset Points" />
-        <Button onPress={() => {
+        <Button disabled={predictMutation.isLoading || outputImageMutation.isLoading || dynamoCreateMutation.isLoading} onPress={() => {
           dynamoCreateMutation.mutateAsync({
             user: "test user",
             image_s3_uri: "s3://weighlty/image1.jpg",
@@ -198,10 +170,19 @@ export default function HomeScreen() {
         photo.width = photo.height;
         photo.height = temp;
       }
+      const { width, height, uri } = photo || { width: 0, height: 0, uri: '' };
+
       if (moveToSecondPicture)
-        setPictureData2(photo);
+        setPictureData2({ width, height, uri });
       else
-        setPictureData1(photo);
+        setPictureData1({ width, height, uri });
+
+      sendPicture(uri).then((annotated_photo) => {
+        if (moveToSecondPicture)
+          setPictureData2({ width, height, uri: (annotated_photo || uri) });
+        else
+          setPictureData1({ width, height, uri: (annotated_photo || uri) });
+      });
     }
   };
 
