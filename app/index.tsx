@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { CameraView, CameraType, useCameraPermissions, CameraCapturedPicture } from 'expo-camera';
+import React from 'react';
+import { CameraView, useCameraPermissions, CameraCapturedPicture } from 'expo-camera';
 import { useRef, useState } from 'react';
 // import { useCameraDevice, useCameraPermission, Camera, PhotoFile } from 'react-native-vision-camera';
 import { Button, GestureResponderEvent, Image, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View, Dimensions } from 'react-native';
@@ -7,94 +7,35 @@ import { Button, GestureResponderEvent, Image, StyleSheet, Text, TouchableOpacit
 // import { Subscription } from 'expo-sensors/src/DeviceSensor';
 import { Icon } from 'react-native-elements';
 
-import { uploadFile, getFile } from './s3';
+import { uploadFile, getFile } from '../utils/s3';
+import { hooks } from '../utils/api'; // Use your new API hooks
 
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
-type FormDataSend = {
-  "image_s3_uri"?: string,
-  "user"?: string
-  "prediction"?: []
-  "annotated_s3_uri"?: string
-};
+// Use your API hooks
+const { usePredictMutation, useOutput_imageMutation, useDynmo_createMutation } = hooks;
 
-const endpointMap: { [key: string]: string } = {
-  "predict": "https://kg6d74p2xcfjejhqfucddvfjye0ktpzr.lambda-url.eu-west-1.on.aws/",
-  "output_image": "https://wexmozjmbvb2knoqpkltzazu3y0nlixp.lambda-url.eu-west-1.on.aws/",
-  "dynmo_create": "https://s6oeijufprvfccw3duv7xunfv40iydre.lambda-url.eu-west-1.on.aws/"
-};
-export default function App() {
-  // const [facing, setFacing] = useState<CameraType>('back');
+export default function HomeScreen() {
   const [pictureStatus, setPictureStatus] = useState<String>('Picture taken!');
-  // const [PictureData1, setPictureData1] = useState<PhotoFile | undefined>(undefined);
-  // const [PictureData2, setPictureData2] = useState<PhotoFile | undefined>(undefined);
-  // const {hasPermission, requestPermission} = useCameraPermission();
   const [PictureData1, setPictureData1] = useState<CameraCapturedPicture | undefined>(undefined);
   const [PictureData2, setPictureData2] = useState<CameraCapturedPicture | undefined>(undefined);
   const [permission, requestPermissions] = useCameraPermissions();
   const [moveToSecondPicture, setMoveToSecondPicture] = useState<boolean>(false);
   const [points1, setPoints1] = useState<{ x: number; y: number }[]>([]);
   const [points2, setPoints2] = useState<{ x: number; y: number }[]>([]);
-  const [prediction1, setPrediction1] = useState<[]>([]);
-  const [prediction2, setPrediction2] = useState<[]>([]);
-  // const [subscription, setSubscription] = useState<Subscription | undefined>(undefined);
-  // const [distence, setDistence] = useState<AccelerometerMeasurement>({
-  //   x: 0,
-  //   y: 0,
-  //   z: 0,
-  //   timestamp: 0,
-  // });
-  // let currData = {
-  //   x: 0,
-  //   y: 0,
-  //   z: 0,
-  //   timestamp: 0,
-  // } as AccelerometerMeasurement;
-  // const device = useCameraDevice('back');
-  // const cameraRef = useRef<Camera>(null);
+  const [prediction1, setPrediction1] = useState<any[]>([]);
+  const [prediction2, setPrediction2] = useState<any[]>([]);
   const cameraRef = useRef<CameraView>(null);
   const image1Ref = useRef<Image>(null);
   const image2Ref = useRef<Image>(null);
   const finishFlag = PictureData1 && PictureData2;
-  // const _subscribe = () => {
-  //   setSubscription(
-  //     Accelerometer.addListener(AccelerometerData => {
-  //       console.log(AccelerometerData);
-  //       const AccelerometerDataParsed = {
-  //         x: AccelerometerData.x > 0.3 ? AccelerometerData.x : 0,
-  //         y: AccelerometerData.y > 0.3 ? AccelerometerData.y : 0,
-  //         z: AccelerometerData.z > 0.3 ? AccelerometerData.z : 0,
-  //         timestamp: AccelerometerData.timestamp,
-  //       }
-  //       // console.log(AccelerometerDataParsed, currData);
-  //       setDistence({
-  //         x: (AccelerometerDataParsed.x - currData.x)*9.81*(0.2**2)/2 + distence.x,
-  //         y: (AccelerometerDataParsed.y - currData.y)*9.81*(0.2**2)/2 + distence.y,
-  //         z: (AccelerometerDataParsed.z - currData.z)*9.81*(0.2**2)/2 + distence.z,
-  //         timestamp: AccelerometerDataParsed.timestamp,
-  //       });
-  //       currData = AccelerometerDataParsed;
-  //     })
-  //   );
-  // };
 
-  // const _unsubscribe = () => {
-  //   subscription && subscription.remove();
-  //   setSubscription(undefined);
-  // };
-  // useEffect(() => {
-  //   _subscribe();
-  //   return () => _unsubscribe();
-  // }, []);
+  // Replace your sendFile function with hooks
+  const predictMutation = usePredictMutation();
+  const outputImageMutation = useOutput_imageMutation();
+  const dynamoCreateMutation = useDynmo_createMutation();
 
-  // if(!device){
-  //   return (
-  //     <View style={styles.container}>
-  //       <Text style={styles.message}>Camera not found</Text>
-  //     </View>
-  //   );
-  // }
   if (!permission)
     return <View></View>
 
@@ -106,16 +47,6 @@ export default function App() {
       </View>
     );
   }
-
-  // if (!hasPermission) {
-  //   // Camera permissions are not granted yet.
-  //   return (
-  //     <View style={styles.container}>
-  //       <Text style={styles.message}>We need your permission to show the camera</Text>
-  //       <Button onPress={requestPermission} title="grant permission" />
-  //     </View>
-  //   );
-  // }
 
   const convertScreenToImageCoords = (
     screenX: number,
@@ -145,91 +76,51 @@ export default function App() {
     return { x, y };
   };
 
-  const sendFile = async (formData: FormDataSend, endPoint: string) => {
-    // console.log(formData);
-    try {
-      const response = await fetch(endpointMap[endPoint], {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData),
-      });
-      const result = await response.json();
-      // console.log(result);
-      return result;
-    } catch (error) {
-      console.error('Error sending the request:', error);
-    }
-  };
-
   const sendPicture = async () => {
     if (finishFlag) {
-      let formData1: FormDataSend = {
-        "user": "test user"
-      };
-      let formData2: FormDataSend = {
-        "user": "test user"
-      };
+
       try {
-        const res1 = await uploadFile(PictureData1.uri,  `original_images/test-user_${Date.now()}_image1.jpg`);
+        const res1 = await uploadFile(PictureData1.uri, `original_images/test-user_${Date.now()}_image1.jpg`);
         const res2 = await uploadFile(PictureData2.uri, `original_images/test-user_${Date.now()}_image2.jpg`);
 
-        formData1 = {
-          ...formData1,
+        const formData1 = {
+          "user": "test user",
           "image_s3_uri": `s3://weighlty/${res1.Key}`
-        }
-        formData2 = {
-          ...formData2,
+        } as const;
+
+        const formData2 = {
+          "user": "test user",
           "image_s3_uri": `s3://weighlty/${res2.Key}`
-        }
-        // console.log(res1, res2);
+        } as const;
+
         setPictureStatus('Pictures sent!');
+
+        // Use your hooks instead of sendFile
+        const prediction1 = await predictMutation.mutateAsync(formData1);
+        const prediction2 = await predictMutation.mutateAsync(formData2);
+
+        if (prediction1.predictions && prediction2.predictions) {
+          setPrediction1(prediction1.predictions);
+          setPrediction2(prediction2.predictions);
+
+          const pred1 = await outputImageMutation.mutateAsync(prediction1);
+
+          const pred2 = await outputImageMutation.mutateAsync(prediction2);
+
+          if (pred1.annotated_s3_uri && pred2.annotated_s3_uri) {
+            // download from s3 base64 image
+            const annotated_image1 = await getFile(pred1.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
+            const annotated_image2 = await getFile(pred2.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
+
+            setPictureData1({ width: PictureData1.width, height: PictureData1.height, uri: annotated_image1?.url });
+            setPictureData2({ width: PictureData2.width, height: PictureData2.height, uri: annotated_image2?.url });
+            setPictureStatus('Pictures sent!');
+          }
+        }
       } catch (e) {
         console.error(e);
         return;
       }
-      // this run ok only the ide think its an error
-      // formData1.append('file', {
-      //   uri: PictureData1.uri,
-      //   name: 'image1.jpg',
-      //   type: 'image/jpeg',
-      // });
-      // formData2.append('file', {
-      //   uri: PictureData2.uri,
-      //   name: 'image2.jpg',
-      //   type: 'image/jpeg',
-      // });
-      // const points1_normalized = points1.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData1.width, PictureData1.height));
-      // const points2_normalized = points2.map(point => convertScreenToImageCoords(point.x, point.y, windowWidth, windowHeight, PictureData2.width, PictureData2.height));
-      // formData.append('points1', JSON.stringify(points1_normalized));
-      // formData.append('points2', JSON.stringify(points2_normalized));
-
-      // const { reference_detected: reference_detected1 } = await sendFile(formData1, '/check_reference');
-      // const { reference_detected: reference_detected2 } = await sendFile(formData2, '/check_reference');
-      // if(reference_detected1 && reference_detected2){
-      const prediction1 = await sendFile(formData1, "predict");
-      const prediction2 = await sendFile(formData2, "predict");
-
-      if(prediction1.predictions && prediction2.predictions)
-      {
-        setPrediction1(prediction1.predictions);
-        setPrediction2(prediction2.predictions);
-  
-        const pred1 = await sendFile(prediction1, "output_image");
-        const pred2 = await sendFile(prediction2, "output_image");
-          
-        if(pred1.annotated_s3_uri && pred2.annotated_s3_uri){
-                  // download from s3 base64 image
-        const annotated_image1 = await getFile(pred1.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
-        const annotated_image2 = await getFile(pred2.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
-  
-        setPictureData1({ width: PictureData1.width, height: PictureData1.height, uri: annotated_image1?.url });
-        setPictureData2({ width: PictureData2.width, height: PictureData2.height, uri: annotated_image2?.url });
-        setPictureStatus('Pictures sent!');
-        }
-      }
-      // }
     }
   };
 
@@ -282,33 +173,26 @@ export default function App() {
           setPoints1([]);
         }} title="Reset Points" />
         <Button onPress={() => {
-          sendFile({ 
-            user: "test user", 
-            image_s3_uri: "s3://weighlty/image1.jpg", 
-            prediction: prediction1, 
+          dynamoCreateMutation.mutateAsync({
+            user: "test user",
+            image_s3_uri: "s3://weighlty/image1.jpg",
+            predictions: prediction1,
             annotated_s3_uri: "s3://weighlty/annotated_image1.jpg"
-          }, "dynmo_create");
-          sendFile({ 
-            user: "test user", 
-            image_s3_uri: "s3://weighlty/image2.jpg", 
-            prediction: prediction2, 
+          });
+          dynamoCreateMutation.mutateAsync({
+            user: "test user",
+            image_s3_uri: "s3://weighlty/image2.jpg",
+            predictions: prediction2,
             annotated_s3_uri: "s3://weighlty/annotated_image2.jpg"
-          }, "dynmo_create");
+          });
         }} title="Save Result" />
       </View>
     );
   }
 
-
-  // function toggleCameraFacing() {
-  //   setFacing(current => (current === 'back' ? 'front' : 'back'));
-  // }
-
   const takePicture = async () => {
     if (cameraRef.current) {
-      // const photo = await cameraRef.current.takePhoto();
       const photo = await cameraRef.current.takePictureAsync({ exif: true });
-      // console.log(photo);
       if (photo?.exif?.Orientation === 6) {
         const temp = photo.width;
         photo.width = photo.height;
@@ -325,21 +209,13 @@ export default function App() {
     <View style={styles.container}>
       <Text>
         Take a picture of the object from the {moveToSecondPicture ? "sides\n" : "front or back\n"}
-        {/* x: 0.00{`\n`}y: 0.00{`\n`}z: 0.00{`\n`} */}
-        {/* x: {`${(distence.x * 100).toFixed(2)}\n`}y: {`${(distence.y*100).toFixed(2)}\n`}z: {`${(distence.z*100).toFixed(2)}\n`} */}
       </Text>
       <CameraView style={styles.camera} ref={cameraRef} ratio='16:9'>
-        {/* <Camera style={styles.camera} ref={cameraRef} photo={true} isActive={true} device={device}> */}
         <View style={styles.buttonContainer}>
-          {/* <View></View> */}
           <TouchableOpacity style={styles.button} onPress={takePicture}>
             <Icon name='circle' type='material' color='white' size={100} />
           </TouchableOpacity>
-          {/* <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-            <Icon style={{ transform: [{ rotate: "90deg" }] }} name='autorenew' type='material' color='white' size={50} />
-          </TouchableOpacity> */}
         </View>
-        {/* </Camera> */}
       </CameraView>
     </View>
   );
