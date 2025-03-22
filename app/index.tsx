@@ -18,10 +18,25 @@ const {
   useReference_calculatorMutation 
 } = hooks;
 
+const responseExample = {
+  image_s3_uri: String(),
+  annotated_s3_uri: String() 
+}
+
+type anototatedImageType = typeof responseExample;
+
 export default function HomeScreen() {
   const [pictureStatus, setPictureStatus] = useState<String>('Picture taken!');
   const [PictureData1, setPictureData1] = useState<CameraCapturedPicture | undefined>(undefined);
   const [PictureData2, setPictureData2] = useState<CameraCapturedPicture | undefined>(undefined);
+  const [anototatedImage1, setAnnotatedImage1] = useState<anototatedImageType>({
+    image_s3_uri: String(),
+    annotated_s3_uri: String()
+  });
+  const [anototatedImage2, setAnnotatedImage2] = useState<anototatedImageType>({
+    image_s3_uri: String(),
+    annotated_s3_uri: String()
+  });
   const [moveToSecondPicture, setMoveToSecondPicture] = useState<boolean>(false);
   const [points1, setPoints1] = useState<{ x: number; y: number }[]>([]);
   const [points2, setPoints2] = useState<{ x: number; y: number }[]>([]);
@@ -102,7 +117,17 @@ export default function HomeScreen() {
         setPictureStatus('Pictures annotated!');
 
         if (pred1.annotated_s3_uri) {
-          // download from s3 base64 image
+          if (moveToSecondPicture)
+            setAnnotatedImage2({
+              image_s3_uri: `s3://weighlty/${res1.Key}`,
+              annotated_s3_uri: pred1.annotated_s3_uri
+            });
+          else
+            setAnnotatedImage2({
+              image_s3_uri: `s3://weighlty/${res1.Key}`,
+              annotated_s3_uri: pred1.annotated_s3_uri
+            });
+
           const annotated_image1 = await getFile(pred1.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
           setPictureStatus('Pictures recived!');
           return annotated_image1?.url;
@@ -173,17 +198,16 @@ export default function HomeScreen() {
           setPoints1([]);
         }} title="Reset Points" />
         <Button disabled={predictMutation.isLoading || outputImageMutation.isLoading || dynamoCreateMutation.isLoading} onPress={() => {
+          console.log(PictureData1, PictureData2);
           dynamoCreateMutation.mutateAsync({
+            ...anototatedImage1,
             user: "test user",
-            image_s3_uri: "s3://weighlty/image1.jpg",
             predictions: prediction1,
-            annotated_s3_uri: "s3://weighlty/annotated_image1.jpg"
           });
           dynamoCreateMutation.mutateAsync({
+            ...anototatedImage2,
             user: "test user",
-            image_s3_uri: "s3://weighlty/image2.jpg",
             predictions: prediction2,
-            annotated_s3_uri: "s3://weighlty/annotated_image2.jpg"
           });
         }} title="Save Result" />
       </View>
