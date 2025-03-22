@@ -1,50 +1,50 @@
 import React from 'react';
 import { CameraView, useCameraPermissions, CameraCapturedPicture } from 'expo-camera';
 import { useRef, useState } from 'react';
-// import { useCameraDevice, useCameraPermission, Camera, PhotoFile } from 'react-native-vision-camera';
-import { Button, GestureResponderEvent, Image, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View, Dimensions } from 'react-native';
-// import { Accelerometer, AccelerometerMeasurement } from 'expo-sensors';
-// import { Subscription } from 'expo-sensors/src/DeviceSensor';
+import { Button, GestureResponderEvent, Image, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { Icon } from 'react-native-elements';
 
 import { uploadFile, getFile } from '../utils/s3';
-import { hooks } from '../utils/api'; // Use your new API hooks
-
-const windowWidth = Dimensions.get('window').width;
-const windowHeight = Dimensions.get('window').height;
+import { hooks } from '../utils/api';
+import ImagePickerExample from './components/pickImage';
+import styles from './style';
+import Permission from './components/Permission';
 
 // Use your API hooks
-const { usePredictMutation, useOutput_imageMutation, useDynmo_createMutation } = hooks;
+const { 
+  usePredictMutation, 
+  useOutput_imageMutation, 
+  useDynmo_createMutation, 
+  useReference_calculatorMutation 
+} = hooks;
 
 export default function HomeScreen() {
   const [pictureStatus, setPictureStatus] = useState<String>('Picture taken!');
   const [PictureData1, setPictureData1] = useState<CameraCapturedPicture | undefined>(undefined);
   const [PictureData2, setPictureData2] = useState<CameraCapturedPicture | undefined>(undefined);
-  const [permission, requestPermissions] = useCameraPermissions();
   const [moveToSecondPicture, setMoveToSecondPicture] = useState<boolean>(false);
   const [points1, setPoints1] = useState<{ x: number; y: number }[]>([]);
   const [points2, setPoints2] = useState<{ x: number; y: number }[]>([]);
-  const [prediction1, setPrediction1] = useState<any[]>([]);
-  const [prediction2, setPrediction2] = useState<any[]>([]);
+  const [prediction1, setPrediction1] = useState<readonly any[]>([]);
+  const [prediction2, setPrediction2] = useState<readonly any[]>([]);
+
+  const [permission, requestPermissions] = useCameraPermissions();
+
   const cameraRef = useRef<CameraView>(null);
   const image1Ref = useRef<Image>(null);
   const image2Ref = useRef<Image>(null);
+
   const finishFlag = PictureData1 && PictureData2;
 
   // Replace your sendFile function with hooks
   const predictMutation = usePredictMutation();
   const outputImageMutation = useOutput_imageMutation();
   const dynamoCreateMutation = useDynmo_createMutation();
+  const referenceCalculatorMutation = useReference_calculatorMutation();
 
-  if (!permission)
-    return <View></View>
-
-  if (!permission.granted) {
+  if (!permission || !permission.granted) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.message}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermissions} title="grant permission" />
-      </View>
+      <Permission permissionType={"camera"} requestPermissions={requestPermissions} />
     );
   }
 
@@ -54,23 +54,50 @@ export default function HomeScreen() {
 
       const formData1 = {
         "user": "test user",
-        "image_s3_uri": `s3://weighlty/${res1.Key}`
+        "image_s3_uri": `s3://weighlty/${res1.Key}`,
+        "model_s3_uri": "s3://weighlty/pine.pt",
+      } as const;
+
+      const formData2 = {
+        "user": "test user",
+        "image_s3_uri": `s3://weighlty/${res1.Key}`,
+        "model_s3_uri": "s3://rbuixcube/large_files/best.pt",
       } as const;
 
       setPictureStatus('Pictures sent!');
 
       // Use your hooks instead of sendFile
       const prediction = await predictMutation.mutateAsync(formData1);
+      const reference_prediction = await predictMutation.mutateAsync(formData2);
+
+      const reference_object = reference_prediction.predictions?.find((obj: any) => obj.object === 'rubiks_cube');
+
+      console.log('reference_prediction', reference_prediction);
+      console.log('prediction', prediction);
+      console.log('reference_object', reference_object);
 
       setPictureStatus('Pictures predicted!');
 
-      if (prediction.predictions) {
-        if (moveToSecondPicture)
-          setPrediction2(prediction.predictions);
-        else
-          setPrediction1(prediction.predictions);
+      if (prediction.predictions && reference_prediction.predictions && reference_prediction.predictions.length > 0) {
+        const predictions_with_size = await referenceCalculatorMutation.mutateAsync({
+          predictions: prediction.predictions,
+          reference_width_cm: 10,
+          reference_width_px: reference_object?.bbox[2] - reference_object?.bbox[0],
+          focal_length_px: 400,
+        });
+        console.log('predictions_with_size', predictions_with_size);
+        setPictureStatus('Pictures calculated size!');
 
-        const pred1 = await outputImageMutation.mutateAsync(prediction);
+        if (moveToSecondPicture)
+          setPrediction2(predictions_with_size);
+        else
+          setPrediction1(predictions_with_size);
+
+        const pred1 = await outputImageMutation.mutateAsync({
+          user : "test user",
+          image_s3_uri : `s3://weighlty/${res1.Key}`,
+          predictions: predictions_with_size,
+        });
 
         setPictureStatus('Pictures annotated!');
 
@@ -100,6 +127,7 @@ export default function HomeScreen() {
   if (PictureData1 && !PictureData2 && !moveToSecondPicture) {
     return (
       <View style={styles.container}>
+        <Text style={styles.message}>{pictureStatus}</Text>
         {outputImageMutation.isLoading || predictMutation.isLoading ?
           <Text style={styles.message}>Loading...</Text>
           :
@@ -165,26 +193,30 @@ export default function HomeScreen() {
   const takePicture = async () => {
     if (cameraRef.current) {
       const photo = await cameraRef.current.takePictureAsync({ exif: true });
-      if (photo?.exif?.Orientation === 6) {
-        const temp = photo.width;
-        photo.width = photo.height;
-        photo.height = temp;
-      }
-      const { width, height, uri } = photo || { width: 0, height: 0, uri: '' };
-
-      if (moveToSecondPicture)
-        setPictureData2({ width, height, uri });
-      else
-        setPictureData1({ width, height, uri });
-
-      sendPicture(uri).then((annotated_photo) => {
-        if (moveToSecondPicture)
-          setPictureData2({ width, height, uri: (annotated_photo || uri) });
-        else
-          setPictureData1({ width, height, uri: (annotated_photo || uri) });
-      });
+      processImage(photo);
     }
   };
+
+  const processImage = (photo: CameraCapturedPicture | undefined) => {
+    if (photo?.exif?.Orientation === 6) {
+      const temp = photo.width;
+      photo.width = photo.height;
+      photo.height = temp;
+    }
+    const { width, height, uri } = photo || { width: 0, height: 0, uri: '' };
+
+    if (moveToSecondPicture)
+      setPictureData2({ width, height, uri });
+    else
+      setPictureData1({ width, height, uri });
+
+    sendPicture(uri).then((annotated_photo) => {
+      if (moveToSecondPicture)
+        setPictureData2({ width, height, uri: (annotated_photo || uri) });
+      else
+        setPictureData1({ width, height, uri: (annotated_photo || uri) });
+    });
+  }
 
   return (
     <View style={styles.container}>
@@ -197,55 +229,9 @@ export default function HomeScreen() {
             <Icon name='circle' type='material' color='white' size={100} />
           </TouchableOpacity>
         </View>
+        <ImagePickerExample {...{processImage}} />
       </CameraView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  message: {
-    textAlign: 'center',
-    paddingBottom: 10,
-  },
-  camera: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    alignSelf: 'center',
-    width: windowWidth,
-    height: windowHeight - 70,
-  },
-  image: {
-    margin: 5,
-    width: windowWidth,
-    height: windowHeight / 2.7,
-    alignSelf: 'center',
-    objectFit: 'contain',
-    backgroundColor: 'black',
-  },
-  buttonContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: 'transparent',
-    justifyContent: 'space-around',
-    marginTop: 64,
-    marginBottom: 64,
-    marginLeft: 0,
-    marginRight: 0,
-  },
-  button: {
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  pointMarker: {
-    position: 'absolute',
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'red'
-  }
-});
 

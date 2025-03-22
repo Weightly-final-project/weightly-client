@@ -3,37 +3,56 @@ import { useMutation } from '@tanstack/react-query';
 // Base API configuration with single source of truth
 const API = {
   predict: {
-    url: "https://kg6d74p2xcfjejhqfucddvfjye0ktpzr.lambda-url.eu-west-1.on.aws/",
+    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predict_pine",
     requestExample: { 
       user: String(), 
-      image_s3_uri: String() 
+      image_s3_uri: String(),
+      model_s3_uri: String(), 
     },
     responseExample: { 
       user: String(), 
       image_s3_uri: String(), 
-      predictions: [] as any[] // Changed from prediction to predictions
+      predictions: [] as readonly any[] // Changed from prediction to predictions
     }
   },
   output_image: {
-    url: "https://wexmozjmbvb2knoqpkltzazu3y0nlixp.lambda-url.eu-west-1.on.aws/",
+    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/output-image-creator",
     requestExample: { 
       user: String(), 
       image_s3_uri: String(),
-      predictions: [] as any[]
+      predictions: [] as readonly any[]
     },
     responseExample: {
       user: String(), 
       image_s3_uri: String(),
-      predictions: [] as any[], 
+      predictions: [] as readonly any[], 
       annotated_s3_uri: String() 
     }
   },
+  reference_calculator: {
+    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/reference_calculator",
+    requestExample: { 
+      predictions: [] as readonly any[],
+      reference_width_cm: Number(), // 10
+      reference_width_px: Number(), // 
+      focal_length_px: Number(), // 400
+    },
+    responseExample: [{
+      "class": String(),
+      "confidence": Number(),
+      "width_cm": Number(),
+      "height_cm": Number(),
+      "length_cm": Number(),
+      "volume_cm3": Number(),
+      "bbox": [] as Number[],
+    }]
+  },
   dynmo_create: {
-    url: "https://s6oeijufprvfccw3duv7xunfv40iydre.lambda-url.eu-west-1.on.aws/",
+    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predictions",
     requestExample: { 
       user: String(), 
       image_s3_uri: String(), 
-      predictions: [] as any[],
+      predictions: [] as readonly any[],
       annotated_s3_uri: String() 
     },
     responseExample: { 
@@ -53,6 +72,7 @@ const fetchApi = async <T extends EndpointKeys>(
   endpoint: T, 
   data: RequestType<T>
 ): Promise<ResponseType<T>> => {
+  console.log('API request:', endpoint, data);
   const response = await fetch(API[endpoint].url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -60,7 +80,7 @@ const fetchApi = async <T extends EndpointKeys>(
   });
   
   if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
+    throw new Error(`API error: ${response.status} ${JSON.stringify(await response.json())}`);
   }
   
   return response.json();
