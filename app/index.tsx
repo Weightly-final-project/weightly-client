@@ -123,7 +123,7 @@ export default function HomeScreen() {
               annotated_s3_uri: pred1.annotated_s3_uri
             });
           else
-            setAnnotatedImage2({
+            setAnnotatedImage1({
               image_s3_uri: `s3://weighlty/${res1.Key}`,
               annotated_s3_uri: pred1.annotated_s3_uri
             });
