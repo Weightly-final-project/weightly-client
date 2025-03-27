@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 const API = {
   predict: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predict_pine",
+    method: "POST",
     requestExample: { 
       user: String(), 
       image_s3_uri: String(),
@@ -17,6 +18,7 @@ const API = {
   },
   output_image: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/output-image-creator",
+    method: "POST",
     requestExample: { 
       user: String(), 
       image_s3_uri: String(),
@@ -31,6 +33,7 @@ const API = {
   },
   reference_calculator: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/reference_calculator",
+    method: "POST",
     requestExample: { 
       predictions: [] as readonly any[],
       reference_width_cm: Number(), // 10
@@ -49,6 +52,7 @@ const API = {
   },
   dynmo_create: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predictions",
+    method: "POST",
     requestExample: { 
       user: String(), 
       image_s3_uri: String(), 
@@ -59,13 +63,29 @@ const API = {
       message: String(),
       prediction_id: String(), 
     }
+  },
+  dynmo_get: {
+    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predictions",
+    method: "GET",
+    requestExample: { 
+      "user": String(),
+    },
+    responseExample: [{
+      "prediction_id": String(),
+      "user": String(),
+      "annotated_s3_uri": String(),
+      "created_at": String(),
+      "image_s3_uri": String(),
+      "updated_at": String(),
+      "predictions": [] as readonly any[],
+    }] as readonly any[]
   }
 } as const;
 
 // Infer types from example objects
-type EndpointKeys = keyof typeof API;
-type RequestType<T extends EndpointKeys> = typeof API[T]['requestExample'];
-type ResponseType<T extends EndpointKeys> = typeof API[T]['responseExample'];
+export type EndpointKeys = keyof typeof API;
+export type RequestType<T extends EndpointKeys> = typeof API[T]['requestExample'];
+export type ResponseType<T extends EndpointKeys> = typeof API[T]['responseExample'];
 
 // Base fetcher function
 const fetchApi = async <T extends EndpointKeys>(
@@ -73,11 +93,17 @@ const fetchApi = async <T extends EndpointKeys>(
   data: RequestType<T>
 ): Promise<ResponseType<T>> => {
   console.log('API request:', endpoint, data);
-  const response = await fetch(API[endpoint].url, {
-    method: 'POST',
+  const response = API[endpoint].method === "POST" ? (
+    await fetch(API[endpoint].url, {
+    method: API[endpoint].method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
-  });
+  })) : (
+    await fetch(API[endpoint].url + "?" + new URLSearchParams(data as Record<string, string>).toString(), {
+      method: API[endpoint].method,
+      headers: { 'Content-Type': 'application/json' },
+  }))
+  ;
   
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${JSON.stringify(await response.json())}`);

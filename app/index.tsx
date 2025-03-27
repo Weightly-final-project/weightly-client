@@ -1,261 +1,186 @@
-import React from 'react';
-import { CameraView, useCameraPermissions, CameraCapturedPicture } from 'expo-camera';
-import { useRef, useState } from 'react';
-import { Button, GestureResponderEvent, Image, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { Icon } from 'react-native-elements';
-
-import { uploadFile, getFile } from '../utils/s3';
-import { hooks } from '../utils/api';
-import ImagePickerExample from './components/pickImage';
-import styles from './style';
-import Permission from './components/Permission';
-
-// Use your API hooks
-const { 
-  usePredictMutation, 
-  useOutput_imageMutation, 
-  useDynmo_createMutation, 
-  useReference_calculatorMutation 
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import { Link } from "expo-router";
+import { useEffect, useState } from "react";
+import { hooks, ResponseType } from "@/utils/api";
+import { ActivityIndicator, Button } from "react-native-paper";
+import PredictionItem from "../components/prediction-card";
+import { getFile } from "@/utils/s3";
+const {
+  useDynmo_getMutation
 } = hooks;
 
-const responseExample = {
-  image_s3_uri: String(),
-  annotated_s3_uri: String() 
-}
-
-type anototatedImageType = typeof responseExample;
-
-export default function HomeScreen() {
-  const [pictureStatus, setPictureStatus] = useState<String>('Picture taken!');
-  const [PictureData1, setPictureData1] = useState<CameraCapturedPicture | undefined>(undefined);
-  const [PictureData2, setPictureData2] = useState<CameraCapturedPicture | undefined>(undefined);
-  const [anototatedImage1, setAnnotatedImage1] = useState<anototatedImageType>({
-    image_s3_uri: String(),
-    annotated_s3_uri: String()
-  });
-  const [anototatedImage2, setAnnotatedImage2] = useState<anototatedImageType>({
-    image_s3_uri: String(),
-    annotated_s3_uri: String()
-  });
-  const [moveToSecondPicture, setMoveToSecondPicture] = useState<boolean>(false);
-  const [points1, setPoints1] = useState<{ x: number; y: number }[]>([]);
-  const [points2, setPoints2] = useState<{ x: number; y: number }[]>([]);
-  const [prediction1, setPrediction1] = useState<readonly any[]>([]);
-  const [prediction2, setPrediction2] = useState<readonly any[]>([]);
-
-  const [permission, requestPermissions] = useCameraPermissions();
-
-  const cameraRef = useRef<CameraView>(null);
-  const image1Ref = useRef<Image>(null);
-  const image2Ref = useRef<Image>(null);
-
-  const finishFlag = PictureData1 && PictureData2;
-
-  // Replace your sendFile function with hooks
-  const predictMutation = usePredictMutation();
-  const outputImageMutation = useOutput_imageMutation();
-  const dynamoCreateMutation = useDynmo_createMutation();
-  const referenceCalculatorMutation = useReference_calculatorMutation();
-
-  if (!permission || !permission.granted) {
-    return (
-      <Permission permissionType={"camera"} requestPermissions={requestPermissions} />
-    );
-  }
-
-  const sendPicture = async (uri: string) => {
-    try {
-      const res1 = await uploadFile(uri, `original_images/test-user_${Date.now()}_image1.jpg`);
-
-      const formData1 = {
-        "user": "test user",
-        "image_s3_uri": `s3://weighlty/${res1.Key}`,
-        "model_s3_uri": "s3://weighlty/pine.pt",
-      } as const;
-
-      const formData2 = {
-        "user": "test user",
-        "image_s3_uri": `s3://weighlty/${res1.Key}`,
-        "model_s3_uri": "s3://rbuixcube/large_files/best.pt",
-      } as const;
-
-      setPictureStatus('Pictures sent!');
-
-      // Use your hooks instead of sendFile
-      const prediction = await predictMutation.mutateAsync(formData1);
-      const reference_prediction = await predictMutation.mutateAsync(formData2);
-
-      const reference_object = reference_prediction.predictions?.find((obj: any) => obj.object === 'rubiks_cube');
-
-      console.log('reference_prediction', reference_prediction);
-      console.log('prediction', prediction);
-      console.log('reference_object', reference_object);
-
-      setPictureStatus('Pictures predicted!');
-
-      if (prediction.predictions && reference_prediction.predictions && reference_prediction.predictions.length > 0) {
-        const predictions_with_size = await referenceCalculatorMutation.mutateAsync({
-          predictions: prediction.predictions,
-          reference_width_cm: 10,
-          reference_width_px: reference_object?.bbox[2] - reference_object?.bbox[0],
-          focal_length_px: 400,
-        });
-        console.log('predictions_with_size', predictions_with_size);
-        setPictureStatus('Pictures calculated size!');
-
-        if (moveToSecondPicture)
-          setPrediction2(predictions_with_size);
-        else
-          setPrediction1(predictions_with_size);
-
-        const pred1 = await outputImageMutation.mutateAsync({
-          user : "test user",
-          image_s3_uri : `s3://weighlty/${res1.Key}`,
-          predictions: predictions_with_size,
-        });
-
-        setPictureStatus('Pictures annotated!');
-
-        if (pred1.annotated_s3_uri) {
-          if (moveToSecondPicture)
-            setAnnotatedImage2({
-              image_s3_uri: `s3://weighlty/${res1.Key}`,
-              annotated_s3_uri: pred1.annotated_s3_uri
-            });
-          else
-            setAnnotatedImage1({
-              image_s3_uri: `s3://weighlty/${res1.Key}`,
-              annotated_s3_uri: pred1.annotated_s3_uri
-            });
-
-          const annotated_image1 = await getFile(pred1.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty');
-          setPictureStatus('Pictures recived!');
-          return annotated_image1?.url;
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      return;
-    }
-  };
-
-  const handlePress = (
-    event: GestureResponderEvent,
-    setPoints: React.Dispatch<React.SetStateAction<{ x: number; y: number }[]>>,
-    pointsArray: { x: number; y: number }[]
-  ) => {
-    if (pointsArray.length >= 4) return;
-    const { locationX, locationY } = event.nativeEvent;
-    setPoints([...pointsArray, { x: locationX, y: locationY }]);
-  }
-
-  if (PictureData1 && !PictureData2 && !moveToSecondPicture) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.message}>{pictureStatus}</Text>
-        {outputImageMutation.isLoading || predictMutation.isLoading ?
-          <Text style={styles.message}>Loading...</Text>
-          :
-          <Image source={{ uri: PictureData1.uri }} style={styles.image} />
-        }
-        <Button disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={() => setMoveToSecondPicture(true)} title="Take another picture" />
-        <Button disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={() => setPictureData1(undefined)} title="Retake the picture" />
-      </View>
-    );
-  }
-
-  if (finishFlag) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.message}>{pictureStatus}</Text>
-        <TouchableWithoutFeedback disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={(e) => handlePress(e, setPoints1, points1)}>
-          <View>
-            <Image ref={image1Ref} source={{ uri: PictureData1.uri }} style={styles.image} />
-            {points1.map((point, i) => (
-              <View key={i} style={[styles.pointMarker, { top: point.y, left: point.x }]} />
-            ))}
-          </View>
-        </TouchableWithoutFeedback>
-        <TouchableWithoutFeedback disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={(e) => handlePress(e, setPoints2, points2)}>
-          <View>
-            {outputImageMutation.isLoading || predictMutation.isLoading ?
-              <Text style={styles.message}>Loading...</Text>
-              :
-              <Image ref={image2Ref} source={{ uri: PictureData2.uri }} style={styles.image} />
-            }
-            {points2.map((point, i) => (
-              <View key={i} style={[styles.pointMarker, { top: point.y, left: point.x }]} />
-            ))}
-          </View>
-        </TouchableWithoutFeedback>
-        {/* <Button onPress={() => sendPicture()} title="Send Picture" /> */}
-        <Button disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={() => {
-          setPictureData2(undefined);
-          setPoints2([]);
-        }} title="Retake the picture" />
-        <Button disabled={outputImageMutation.isLoading || predictMutation.isLoading} onPress={() => {
-          setPoints2([]);
-          setPoints1([]);
-        }} title="Reset Points" />
-        <Button disabled={predictMutation.isLoading || outputImageMutation.isLoading || dynamoCreateMutation.isLoading} onPress={() => {
-          console.log(PictureData1, PictureData2);
-          dynamoCreateMutation.mutateAsync({
-            ...anototatedImage1,
-            user: "test user",
-            predictions: prediction1,
-          });
-          dynamoCreateMutation.mutateAsync({
-            ...anototatedImage2,
-            user: "test user",
-            predictions: prediction2,
-          });
-        }} title="Save Result" />
-      </View>
-    );
-  }
-
-  const takePicture = async () => {
-    if (cameraRef.current) {
-      const photo = await cameraRef.current.takePictureAsync({ exif: true });
-      processImage(photo);
-    }
-  };
-
-  const processImage = (photo: CameraCapturedPicture | undefined) => {
-    if (photo?.exif?.Orientation === 6) {
-      const temp = photo.width;
-      photo.width = photo.height;
-      photo.height = temp;
-    }
-    const { width, height, uri } = photo || { width: 0, height: 0, uri: '' };
-
-    if (moveToSecondPicture)
-      setPictureData2({ width, height, uri });
-    else
-      setPictureData1({ width, height, uri });
-
-    sendPicture(uri).then((annotated_photo) => {
-      if (moveToSecondPicture)
-        setPictureData2({ width, height, uri: (annotated_photo || uri) });
-      else
-        setPictureData1({ width, height, uri: (annotated_photo || uri) });
+export default function CameraScreen() {
+  const dynmo_getMutation = useDynmo_getMutation();
+  const [predictions, setPredictions] = useState<ResponseType<"dynmo_get"> | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const user = "test_user"; // Replace with actual user ID
+    // dynmo_getMutation.mutate({ user }, {
+    //   onSuccess: (data) => {
+    //     setPredictions(data);
+    //   },
+    //   onError: (error) => {
+    //     console.error("Error fetching predictions:", error);
+    //   }
+    // });
+    const pre: ResponseType<"dynmo_get"> = [
+      {
+        "prediction_id": String("123abc"),
+        "user": String("user_001"),
+        "annotated_s3_uri": String("s3://weighlty/annotated_original_images/test-user_1742670506560_image1.jpg"),
+        "created_at": String("2025-03-27T10:15:30Z"),
+        "image_s3_uri": String("s3://weighlty/original_images/test-user_1742670506560_image1.jpg"),
+        "updated_at": String("2025-03-27T11:00:00Z"),
+        "predictions": [] as readonly any[],
+      } as const,
+      {
+        "prediction_id": String("456def"),
+        "user": String("user_002"),
+        "annotated_s3_uri": String("s3://weighlty/annotated_original_images/test-user_1742670506560_image1.jpg"),
+        "created_at": String("2025-03-26T15:45:10Z"),
+        "image_s3_uri": String("s3://weighlty/original_images/test-user_1742670506560_image1.jpg"),
+        "updated_at": String("2025-03-26T16:30:45Z"),
+        "predictions": [] as readonly any[],
+      } as const,
+      {
+        "prediction_id": String("789ghi"),
+        "user": String("user_003"),
+        "annotated_s3_uri": String("s3://weighlty/annotated_original_images/test-user_1742670506560_image1.jpg"),
+        "created_at": String("2025-03-25T08:25:50Z"),
+        "image_s3_uri": String("s3://weighlty/original_images/test-user_1742670506560_image1.jpg"),
+        "updated_at": String("2025-03-25T09:10:20Z"),
+        "predictions": [] as readonly any[],
+      } as const,
+    ]
+    const promises_origing = pre.map((item) => (
+      getFile(item.image_s3_uri.split('/').splice(3).join('/'), 'weighlty')
+    ));
+    Promise.all(promises_origing)
+      .then((results) => {
+        const updatedPredictions = pre.map((item, index) => ({
+          ...item,
+          download_image_s3_uri: results[index].url,
+        }));
+        setPredictions(updatedPredictions);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching images:", error);
+        setLoading(false);
     });
+
+    const promises_annotated = pre.map((item) => (
+      getFile(item.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty')
+    ));
+    Promise.all(promises_annotated)
+      .then((results) => {
+        const updatedPredictions = pre.map((item, index) => ({
+          ...item,
+          download_annotated_s3_uri: results[index].url,
+        }));
+        setPredictions(updatedPredictions);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching images:", error);
+        setLoading(false);
+    });
+    setPredictions(pre);
+  }, []);
+
+  const handlePredictionPress = (predictionId: string) => {
+    console.log(`Prediction ${predictionId} pressed`)
+    // Navigate to details or perform other actions
   }
 
   return (
     <View style={styles.container}>
-      <Text>
-        Take a picture of the object from the {moveToSecondPicture ? "sides\n" : "front or back\n"}
-      </Text>
-      <CameraView style={styles.camera} ref={cameraRef} ratio='16:9'>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={takePicture}>
-            <Icon name='circle' type='material' color='white' size={100} />
-          </TouchableOpacity>
+      <View style={styles.header}>
+        <Text style={styles.title}>Predictions</Text>
+        <Link href="/camera" asChild>
+          <Button mode="contained" icon="camera" style={styles.cameraButton}>
+            Camera
+          </Button>
+        </Link>
+      </View>
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6200ee" />
+          <Text style={styles.loadingText}>Loading predictions...</Text>
         </View>
-        <ImagePickerExample {...{processImage}} />
-      </CameraView>
+      ) : predictions && predictions.length > 0 ? (
+        <FlatList
+          data={predictions}
+          keyExtractor={(item) => item.prediction_id}
+          renderItem={({ item }) => {
+            const {predictions, ...rest} = item
+            return <PredictionItem item={rest} onPress={() => handlePredictionPress(item.prediction_id)} />
+          }}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No predictions found</Text>
+          <Link href="/camera" asChild>
+            <Button mode="contained" icon="plus" style={styles.addButton}>
+              Create New Prediction
+            </Button>
+          </Link>
+        </View>
+      )}
     </View>
-  );
+  )
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: "white",
+    elevation: 2,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  cameraButton: {
+    backgroundColor: "#6200ee",
+  },
+  listContent: {
+    paddingVertical: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: "#666",
+    marginBottom: 24,
+  },
+  addButton: {
+    backgroundColor: "#6200ee",
+  },
+})

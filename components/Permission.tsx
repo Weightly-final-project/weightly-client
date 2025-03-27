@@ -1,6 +1,6 @@
 import { PermissionResponse } from "expo-camera";
 import { Button, Text, View } from "react-native";
-import styles from "../style";
+import styles from "../utils/style";
 
 export default function Permission (props:{
     requestPermissions: () => Promise<PermissionResponse>;

@@ -14,7 +14,11 @@ const queryClient = new QueryClient({
 export default function Layout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }} >
+        <Stack.Screen name="index" options={{ title: 'Home' }} />
+        <Stack.Screen name="camera" options={{ title: 'Camera' }} />
+        <Stack.Screen name="prediction" options={{ title: 'Prediction' }} />
+      </Stack>
     </QueryClientProvider>
   );
 }

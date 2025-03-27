@@ -47,7 +47,10 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: 'red'
-  }
+  },
+  tableHeader: {
+    backgroundColor: '#DCDCDC',
+  },
 });
 
 export default styles;
