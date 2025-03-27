@@ -6,7 +6,6 @@ import {
   Text,
   Image,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   StyleSheet,
   Dimensions,
   ActivityIndicator,
@@ -22,7 +21,7 @@ import ImagePickerExample from "../components/pickImage"
 import Permission from "../components/Permission"
 
 // Use your API hooks
-const { usePredictMutation, useOutput_imageMutation, useDynmo_createMutation, useReference_calculatorMutation } = hooks
+const { usePredictMutation, useOutput_imageMutation, useReference_calculatorMutation } = hooks
 
 const responseExample = {
   image_s3_uri: String(),
@@ -36,12 +35,7 @@ export default function CameraScreen() {
   const router = useRouter()
   const [pictureStatus, setPictureStatus] = useState<string>("Ready to capture")
   const [PictureData1, setPictureData1] = useState<CameraCapturedPicture | undefined>(undefined)
-  const [PictureData2, setPictureData2] = useState<CameraCapturedPicture | undefined>(undefined)
   const [anototatedImage1, setAnnotatedImage1] = useState<anototatedImageType>(responseExample)
-  const [anototatedImage2, setAnnotatedImage2] = useState<anototatedImageType>(responseExample)
-  const [moveToSecondPicture, setMoveToSecondPicture] = useState<boolean>(false)
-  const [points1, setPoints1] = useState<{ x: number; y: number }[]>([])
-  const [points2, setPoints2] = useState<{ x: number; y: number }[]>([])
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
   const [downloadUrl, setDownloadUrl] = useState<string | undefined>(undefined)
   const [downloadOriginUrl, setDownloadOriginUrl] = useState<string | undefined>(undefined)
@@ -50,12 +44,10 @@ export default function CameraScreen() {
 
   const cameraRef = useRef<CameraView>(null)
 
-  const finishFlag = PictureData1 && PictureData2
 
   // Replace your sendFile function with hooks
   const predictMutation = usePredictMutation()
   const outputImageMutation = useOutput_imageMutation()
-  const dynamoCreateMutation = useDynmo_createMutation()
   const referenceCalculatorMutation = useReference_calculatorMutation()
 
   // Navigate to prediction screen after saving
@@ -141,13 +133,6 @@ export default function CameraScreen() {
         setPictureStatus("Processing complete!")
 
         if (pred1.annotated_s3_uri) {
-          if (moveToSecondPicture)
-            setAnnotatedImage2({
-              image_s3_uri: `s3://weighlty/${res1.Key}`,
-              annotated_s3_uri: pred1.annotated_s3_uri,
-              predictions: predictions_with_size,
-            })
-          else
             setAnnotatedImage1({
               image_s3_uri: `s3://weighlty/${res1.Key}`,
               annotated_s3_uri: pred1.annotated_s3_uri,
@@ -177,7 +162,7 @@ export default function CameraScreen() {
     }
   }
 
-  if (PictureData1 && !PictureData2 && !moveToSecondPicture) {
+  if (PictureData1) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" />
@@ -235,12 +220,10 @@ export default function CameraScreen() {
     }
     const { width, height, uri } = photo
 
-    if (moveToSecondPicture) setPictureData2({ width, height, uri })
-    else setPictureData1({ width, height, uri })
+    setPictureData1({ width, height, uri })
 
     sendPicture(uri).then((annotated_photo) => {
-      if (moveToSecondPicture) setPictureData2({ width, height, uri: annotated_photo || uri })
-      else setPictureData1({ width, height, uri: annotated_photo || uri })
+      setPictureData1({ width, height, uri: annotated_photo || uri })
     })
   }
   return (
@@ -250,7 +233,7 @@ export default function CameraScreen() {
         <TouchableOpacity style={styles.cameraHeaderButton} onPress={() => router.back()}>
           <Icon name="arrow-back" type="material" color="white" size={24} />
         </TouchableOpacity>
-        <Text style={styles.cameraTitle}>{moveToSecondPicture ? "Side View" : "Front View"}</Text>
+        <Text style={styles.cameraTitle}>Capture or choose a picture</Text>
         <View></View>
       </View>
 
@@ -259,9 +242,7 @@ export default function CameraScreen() {
           <View style={styles.cameraInstructions}>
             <View style={styles.instructionBubble}>
               <Text style={styles.instructionText}>
-                {moveToSecondPicture
-                  ? "Take a picture of the object from the side"
-                  : "Take a picture of the object from the front"}
+                Take a picture with pine wood and rubiks cube
               </Text>
             </View>
           </View>

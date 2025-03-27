@@ -14,10 +14,43 @@ export default function CameraScreen() {
   const [predictions, setPredictions] = useState<ResponseType<"dynmo_get"> | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    const user = "test_user"; // Replace with actual user ID
+    const user = "test user"; // Replace with actual user ID
     // dynmo_getMutation.mutate({ user }, {
-    //   onSuccess: (data) => {
-    //     setPredictions(data);
+    //   onSuccess: (pre) => {
+    //     const promises_origing = pre.map((item) => (
+    //       getFile(item.image_s3_uri.split('/').splice(3).join('/'), 'weighlty')
+    //     ));
+    //     Promise.all(promises_origing)
+    //       .then((results) => {
+    //         const updatedPredictions = pre.map((item, index) => ({
+    //           ...item,
+    //           download_image_s3_uri: results[index].url,
+    //         }));
+    //         setPredictions(updatedPredictions);
+    //         setLoading(false);
+    //       })
+    //       .catch((error) => {
+    //         console.error("Error fetching images:", error);
+    //         setLoading(false);
+    //     });
+
+    //     const promises_annotated = pre.map((item) => (
+    //       getFile(item.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty')
+    //     ));
+    //     Promise.all(promises_annotated)
+    //       .then((results) => {
+    //         const updatedPredictions = pre.map((item, index) => ({
+    //           ...item,
+    //           download_annotated_s3_uri: results[index].url,
+    //         }));
+    //         setPredictions(updatedPredictions);
+    //         setLoading(false);
+    //       })
+    //       .catch((error) => {
+    //         console.error("Error fetching images:", error);
+    //         setLoading(false);
+    //     });
+    //     setPredictions(pre);
     //   },
     //   onError: (error) => {
     //     console.error("Error fetching predictions:", error);
@@ -67,7 +100,7 @@ export default function CameraScreen() {
       .catch((error) => {
         console.error("Error fetching images:", error);
         setLoading(false);
-    });
+      });
 
     const promises_annotated = pre.map((item) => (
       getFile(item.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty')
@@ -84,7 +117,7 @@ export default function CameraScreen() {
       .catch((error) => {
         console.error("Error fetching images:", error);
         setLoading(false);
-    });
+      });
     setPredictions(pre);
   }, []);
 

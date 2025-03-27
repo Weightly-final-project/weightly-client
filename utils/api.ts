@@ -92,16 +92,22 @@ const fetchApi = async <T extends EndpointKeys>(
   endpoint: T, 
   data: RequestType<T>
 ): Promise<ResponseType<T>> => {
-  console.log('API request:', endpoint, data);
+  const controller = new AbortController()
+
+// 5 second timeout:
+
+const timeoutId = setTimeout(() => controller.abort(), 5000* 60); // 5 minutes
   const response = API[endpoint].method === "POST" ? (
     await fetch(API[endpoint].url, {
     method: API[endpoint].method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+    signal: controller.signal,
   })) : (
-    await fetch(API[endpoint].url + "?" + new URLSearchParams(data as Record<string, string>).toString(), {
+    await fetch(API[endpoint].url + "/" + new URLSearchParams((data as Record<string, string>)["user"]).toString(), {
       method: API[endpoint].method,
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
   }))
   ;
   

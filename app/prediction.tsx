@@ -3,8 +3,8 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router"
 import { Card, Chip, Divider } from "react-native-paper"
 import { Image } from "expo-image"
 import { format } from "date-fns"
-import { ArrowLeft, Share2 } from "lucide-react-native"
-import { useState } from "react"
+import { ArrowLeft } from "lucide-react-native"
+import { useEffect, useMemo, useState } from "react"
 import { hooks } from "@/utils/api"
 import { Icon } from "react-native-elements"
 
@@ -29,21 +29,31 @@ export default function PredictionScreen() {
   const router = useRouter()
   const params = useLocalSearchParams()
   const { prediction_id, user, created_at, updated_at, image_s3_uri, annotated_s3_uri, download_image_s3_uri, download_annotated_s3_uri, predictions } = params
-  const parsedPredictions = predictions ? JSON.parse(predictions as string) : []
+  const parsedPredictions = useMemo(() => predictions ? JSON.parse(predictions as string) : [], [predictions])
   const [pictureStatus, setPictureStatus] = useState<string>("Ready to save")
-  const [points, setPoints] = useState<{ x: number; y: number }[]>([])
+  // const [points, setPoints] = useState<{ x: number; y: number }[]>([])
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
+  const [totalVolume, setTotalVolume] = useState<number>(0.0)
+  const [avarageSize, setAvarageSize] = useState<{
+    width_cm: number
+    height_cm: number
+    length_cm: number
+  }>({
+    width_cm: 0.0,
+    height_cm: 0.0,
+    length_cm: 0.0,
+  })
   const dynamoCreateMutation = useDynmo_createMutation()
 
-  const handlePress = (
-    event: GestureResponderEvent,
-    setPoints: React.Dispatch<React.SetStateAction<{ x: number; y: number }[]>>,
-    pointsArray: { x: number; y: number }[],
-  ) => {
-    if (pointsArray.length >= 4) return
-    const { locationX, locationY } = event.nativeEvent
-    setPoints([...pointsArray, { x: locationX, y: locationY }])
-  }
+  // const handlePress = (
+  //   event: GestureResponderEvent,
+  //   setPoints: React.Dispatch<React.SetStateAction<{ x: number; y: number }[]>>,
+  //   pointsArray: { x: number; y: number }[],
+  // ) => {
+  //   if (pointsArray.length >= 4) return
+  //   const { locationX, locationY } = event.nativeEvent
+  //   setPoints([...pointsArray, { x: locationX, y: locationY }])
+  // }
 
   const saveResults = async () => {
     try {
@@ -85,6 +95,33 @@ export default function PredictionScreen() {
     }
   }
 
+  useEffect(() => {
+    const totalVolumeCalc = parsedPredictions.reduce((acc: number, prediction: any) => {
+      if (prediction.volume_cm3) {
+        return acc + prediction.volume_cm3
+      }
+      return acc
+    }, 0.0)
+    setTotalVolume(totalVolumeCalc)
+    const avarageSizeCalc = parsedPredictions.reduce((acc: any, prediction: any) => {
+      if (prediction.width_cm && prediction.height_cm && prediction.length_cm) {
+        acc.width_cm += prediction.width_cm
+        acc.height_cm += prediction.height_cm
+        acc.length_cm += prediction.length_cm
+      }
+      return acc
+    }, { width_cm: 0, height_cm: 0, length_cm: 0 });
+    const count = parsedPredictions.length
+    if (count > 0) {
+      setAvarageSize({
+        width_cm: avarageSizeCalc.width_cm / count,
+        height_cm: avarageSizeCalc.height_cm / count,
+        length_cm: avarageSizeCalc.length_cm / count,
+      })
+    }
+  }, [predictions])
+
+
   const imageUrl = encodeURI(download_annotated_s3_uri as string);
   return (
     <View style={styles.container}>
@@ -97,26 +134,28 @@ export default function PredictionScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <TouchableWithoutFeedback disabled={isProcessing} onPress={(e) => handlePress(e, setPoints, points)}>
+        {/* <TouchableWithoutFeedback disabled={isProcessing} onPress={(e) => handlePress(e, setPoints, points)}> */}
           <View style={styles.imageContainer}>
             <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
-            {points.map((point, i) => (
+            {/* {points.map((point, i) => (
               <View key={i} style={[styles.pointMarker, { top: point.y, left: point.x }]}>
                 <Text style={styles.pointNumber}>{i + 1}</Text>
               </View>
-            ))}
-            {points.length < 4 && (
-              <View style={styles.pointInstructions}>
+            ))} */}
+            <View style={styles.pointInstructions}>
+              {/* {points.length < 4 && (
                 <Text style={styles.pointInstructionsText}>Tap to mark points ({points.length}/4)</Text>
-              </View>
-            )}
+              )} */}
+              <Text style={styles.pointInstructionsText}>totalVolume(m3): {(totalVolume/1000000).toFixed(3)}</Text>
+              <Text style={styles.pointInstructionsText}> avarage size (cm): {Object.values(avarageSize).map(item => item.toFixed(3)).join('X')}</Text>
+            </View>
             <View style={styles.imageOverlay}>
               <Chip icon="image" style={styles.fileChip} textStyle={styles.chipText}>
                 {typeof image_s3_uri === "string" ? getFilenameFromS3Uri(image_s3_uri) : "Image"}
               </Chip>
             </View>
           </View>
-        </TouchableWithoutFeedback>
+        {/* </TouchableWithoutFeedback> */}
 
         <View style={styles.detailsContainer}>
           <View style={styles.section}>
@@ -172,14 +211,13 @@ export default function PredictionScreen() {
               </Card.Content>
             </Card>
           </View>
-          {(prediction_id as string).split('_')[0] === 'temp' && (<>
           <Divider style={styles.divider} />
 
           <View style={styles.statusBar}>
             <Text style={styles.statusText}>{pictureStatus}</Text>
           </View>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[styles.actionBtn, isProcessing && styles.disabledButton]}
             disabled={isProcessing}
             onPress={() => {
@@ -188,21 +226,24 @@ export default function PredictionScreen() {
           >
             <Icon name="delete" type="material" color="white" size={24} />
             <Text style={styles.actionBtnText}>Clear Points</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.actionBtn,
-              styles.primaryButton,
-              isProcessing && styles.disabledButton,
-              (points.length < 4) && styles.disabledButton,
-            ]}
-            disabled={isProcessing || points.length < 4}
-            onPress={saveResults}
-          >
-            <Icon name="save" type="material" color="white" size={24} />
-            <Text style={styles.actionBtnText}>Save</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
+          {(prediction_id as string).split('_')[0] === 'temp' && (<>
+            <TouchableOpacity
+              style={[
+                styles.actionBtn,
+                styles.primaryButton,
+                isProcessing && styles.disabledButton,
+                // (points.length < 4) && styles.disabledButton,
+              ]}
+              disabled={
+                isProcessing 
+                // || points.length < 4
+              }
+              onPress={saveResults}
+            >
+              <Icon name="save" type="material" color="white" size={24} />
+              <Text style={styles.actionBtnText}>Save</Text>
+            </TouchableOpacity>
           </>)}
         </View>
       </ScrollView>
@@ -272,7 +313,7 @@ const styles = StyleSheet.create({
   },
   pointInstructions: {
     position: "absolute",
-    bottom: 10,
+    bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: "rgba(0,0,0,0.7)",
