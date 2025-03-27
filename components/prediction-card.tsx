@@ -28,6 +28,7 @@ type PredictionItemProps = {
     updated_at: string
     download_image_s3_uri: string
     download_annotated_s3_uri: string
+    predictions: readonly any[]
   }
   onPress?: () => void
 }
@@ -66,7 +67,10 @@ const PredictionItem = ({ item, onPress }: PredictionItemProps) => {
         <View style={styles.footer}>
           <Link href={{
             pathname: "/prediction",
-            params: item,
+            params: {
+              ...item,
+              predictions: JSON.stringify(item.predictions),
+            },
           }} asChild>
             <Button mode="contained" onPress={onPress} style={styles.viewButton} icon="eye">
               View Details

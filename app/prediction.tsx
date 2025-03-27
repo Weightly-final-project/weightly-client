@@ -1,9 +1,14 @@
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from "react-native"
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, GestureResponderEvent, TouchableWithoutFeedback, Alert } from "react-native"
 import { useLocalSearchParams, useRouter, Stack } from "expo-router"
 import { Card, Chip, Divider } from "react-native-paper"
 import { Image } from "expo-image"
 import { format } from "date-fns"
 import { ArrowLeft, Share2 } from "lucide-react-native"
+import { useState } from "react"
+import { hooks } from "@/utils/api"
+import { Icon } from "react-native-elements"
+
+const { useDynmo_createMutation } = hooks
 
 // Helper function to extract filename from S3 URI
 const getFilenameFromS3Uri = (uri: string) => {
@@ -23,19 +28,66 @@ const formatDate = (dateString: string) => {
 export default function PredictionScreen() {
   const router = useRouter()
   const params = useLocalSearchParams()
-  const { prediction_id, user, created_at, updated_at, image_s3_uri, annotated_s3_uri, download_image_s3_uri, download_annotated_s3_uri } = params
+  const { prediction_id, user, created_at, updated_at, image_s3_uri, annotated_s3_uri, download_image_s3_uri, download_annotated_s3_uri, predictions } = params
+  const parsedPredictions = predictions ? JSON.parse(predictions as string) : []
+  const [pictureStatus, setPictureStatus] = useState<string>("Ready to save")
+  const [points, setPoints] = useState<{ x: number; y: number }[]>([])
+  const [isProcessing, setIsProcessing] = useState<boolean>(false)
+  const dynamoCreateMutation = useDynmo_createMutation()
 
-  // For demo purposes, we'll use a placeholder image
-  // In production, you would use a proper image loading mechanism for S3
-  const imageUrl = encodeURI(download_annotated_s3_uri as string);  
+  const handlePress = (
+    event: GestureResponderEvent,
+    setPoints: React.Dispatch<React.SetStateAction<{ x: number; y: number }[]>>,
+    pointsArray: { x: number; y: number }[],
+  ) => {
+    if (pointsArray.length >= 4) return
+    const { locationX, locationY } = event.nativeEvent
+    setPoints([...pointsArray, { x: locationX, y: locationY }])
+  }
+
+  const saveResults = async () => {
+    try {
+      setPictureStatus("Saving results...")
+      setIsProcessing(true)
+
+      const result = await dynamoCreateMutation.mutateAsync({
+        ...{
+          image_s3_uri: image_s3_uri as string,
+          annotated_s3_uri: annotated_s3_uri as string,
+          predictions: parsedPredictions
+        },
+        user: "test user",
+      })
+
+      setPictureStatus("Results saved successfully!")
+
+      setIsProcessing(false)
+      router.replace({
+        pathname: "/prediction",
+        params: {
+          id: result.prediction_id,
+          prediction_id: result.prediction_id,
+          user: "test user",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          image_s3_uri: image_s3_uri,
+          annotated_s3_uri: annotated_s3_uri,
+          download_image_s3_uri: download_image_s3_uri,
+          download_annotated_s3_uri: download_annotated_s3_uri,
+          predictions: predictions,
+        },
+      })
+    } catch (error) {
+      console.error(error)
+      setPictureStatus("Error saving results")
+      Alert.alert("Save Error", "There was an error saving your results. Please try again.", [{ text: "OK" }])
+      setIsProcessing(false)
+    }
+  }
+
+  const imageUrl = encodeURI(download_annotated_s3_uri as string);
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft color="#fff" size={24} />
@@ -45,14 +97,26 @@ export default function PredictionScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.imageContainer}>
-          <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
-          <View style={styles.imageOverlay}>
-            <Chip icon="image" style={styles.fileChip} textStyle={styles.chipText}>
-              {typeof image_s3_uri === "string" ? getFilenameFromS3Uri(image_s3_uri) : "Image"}
-            </Chip>
+        <TouchableWithoutFeedback disabled={isProcessing} onPress={(e) => handlePress(e, setPoints, points)}>
+          <View style={styles.imageContainer}>
+            <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
+            {points.map((point, i) => (
+              <View key={i} style={[styles.pointMarker, { top: point.y, left: point.x }]}>
+                <Text style={styles.pointNumber}>{i + 1}</Text>
+              </View>
+            ))}
+            {points.length < 4 && (
+              <View style={styles.pointInstructions}>
+                <Text style={styles.pointInstructionsText}>Tap to mark points ({points.length}/4)</Text>
+              </View>
+            )}
+            <View style={styles.imageOverlay}>
+              <Chip icon="image" style={styles.fileChip} textStyle={styles.chipText}>
+                {typeof image_s3_uri === "string" ? getFilenameFromS3Uri(image_s3_uri) : "Image"}
+              </Chip>
+            </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
 
         <View style={styles.detailsContainer}>
           <View style={styles.section}>
@@ -108,6 +172,38 @@ export default function PredictionScreen() {
               </Card.Content>
             </Card>
           </View>
+          {(prediction_id as string).split('_')[0] === 'temp' && (<>
+          <Divider style={styles.divider} />
+
+          <View style={styles.statusBar}>
+            <Text style={styles.statusText}>{pictureStatus}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.actionBtn, isProcessing && styles.disabledButton]}
+            disabled={isProcessing}
+            onPress={() => {
+              setPoints([])
+            }}
+          >
+            <Icon name="delete" type="material" color="white" size={24} />
+            <Text style={styles.actionBtnText}>Clear Points</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              styles.primaryButton,
+              isProcessing && styles.disabledButton,
+              (points.length < 4) && styles.disabledButton,
+            ]}
+            disabled={isProcessing || points.length < 4}
+            onPress={saveResults}
+          >
+            <Icon name="save" type="material" color="white" size={24} />
+            <Text style={styles.actionBtnText}>Save</Text>
+          </TouchableOpacity>
+          </>)}
         </View>
       </ScrollView>
     </View>
@@ -120,6 +216,72 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#121212",
+  },
+  touchableImageContainer: {
+    position: "relative",
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  actionBtn: {
+    backgroundColor: "#333333",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 100,
+  },
+  primaryButton: {
+    backgroundColor: "#6200ee",
+  },
+  actionBtnText: {
+    color: "white",
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  pointMarker: {
+    position: "absolute",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(98, 0, 238, 0.8)",
+    borderWidth: 2,
+    borderColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
+    transform: [{ translateX: -15 }, { translateY: -15 }],
+  },
+  statusBar: {
+    backgroundColor: "#1E1E1E",
+    padding: 8,
+    alignItems: "center",
+  },
+  statusText: {
+    color: "#6200ee",
+    fontSize: 14,
+  },
+  pointNumber: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  pointInstructions: {
+    position: "absolute",
+    bottom: 10,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    padding: 8,
+    alignItems: "center",
+  },
+  pointInstructionsText: {
+    color: "white",
+    fontSize: 14,
   },
   header: {
     flexDirection: "row",

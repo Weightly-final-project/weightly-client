@@ -114,8 +114,7 @@ export default function CameraScreen() {
           data={predictions}
           keyExtractor={(item) => item.prediction_id}
           renderItem={({ item }) => {
-            const {predictions, ...rest} = item
-            return <PredictionItem item={rest} onPress={() => handlePredictionPress(item.prediction_id)} />
+            return <PredictionItem item={item} onPress={() => handlePredictionPress(item.prediction_id)} />
           }}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
