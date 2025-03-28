@@ -19,6 +19,12 @@ const uploadFile = async (uri: string, key: string = 'image1.jpg', bucketName: s
     return res;
 };
 
+const getFiles = (urls: string[], bucketName: string = 'weighlty') => {
+    return Promise.all(urls.map((item) => (
+        getFile(item.split('/').splice(3).join('/'), bucketName)
+    )));
+}
+
 const getFile = async (key: string = 'image1.jpg', bucketName: string = 'weighlty') => {
     try {
         const params = {
@@ -48,4 +54,4 @@ const getFile = async (key: string = 'image1.jpg', bucketName: string = 'weighlt
     }
 };
 
-export { client, uploadFile, getFile };
+export { client, uploadFile, getFile, getFiles };

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { hooks, ResponseType } from "@/utils/api";
 import { ActivityIndicator, Button } from "react-native-paper";
 import PredictionItem from "../components/prediction-card";
-import { getFile } from "@/utils/s3";
+import { getFiles } from "@/utils/s3";
 const {
   useDynmo_getMutation
 } = hooks;
@@ -85,40 +85,30 @@ export default function CameraScreen() {
         "predictions": [] as readonly any[],
       } as const,
     ]
-    const promises_origing = pre.map((item) => (
-      getFile(item.image_s3_uri.split('/').splice(3).join('/'), 'weighlty')
-    ));
-    Promise.all(promises_origing)
+    getFiles(pre.map((item) => item.image_s3_uri), 'weighlty')
       .then((results) => {
         const updatedPredictions = pre.map((item, index) => ({
           ...item,
           download_image_s3_uri: results[index].url,
         }));
         setPredictions(updatedPredictions);
-        setLoading(false);
       })
       .catch((error) => {
         console.error("Error fetching images:", error);
-        setLoading(false);
       });
 
-    const promises_annotated = pre.map((item) => (
-      getFile(item.annotated_s3_uri.split('/').splice(3).join('/'), 'weighlty')
-    ));
-    Promise.all(promises_annotated)
+    getFiles(pre.map((item) => item.annotated_s3_uri), 'weighlty')
       .then((results) => {
         const updatedPredictions = pre.map((item, index) => ({
           ...item,
           download_annotated_s3_uri: results[index].url,
         }));
         setPredictions(updatedPredictions);
-        setLoading(false);
       })
       .catch((error) => {
         console.error("Error fetching images:", error);
-        setLoading(false);
       });
-    setPredictions(pre);
+    setLoading(false);
   }, []);
 
   const handlePredictionPress = (predictionId: string) => {
