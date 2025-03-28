@@ -1,7 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, GestureResponderEvent, TouchableWithoutFeedback, Alert } from "react-native"
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, GestureResponderEvent, TouchableWithoutFeedback, Alert, Image } from "react-native"
 import { useLocalSearchParams, useRouter, Stack } from "expo-router"
 import { Card, Chip, Divider } from "react-native-paper"
-import { Image } from "expo-image"
 import { format } from "date-fns"
 import { ArrowLeft } from "lucide-react-native"
 import { useEffect, useMemo, useState } from "react"
@@ -136,7 +135,7 @@ export default function PredictionScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* <TouchableWithoutFeedback disabled={isProcessing} onPress={(e) => handlePress(e, setPoints, points)}> */}
           <View style={styles.imageContainer}>
-            <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
+            <Image source={{ uri: imageUrl }} style={styles.image} />
             {/* {points.map((point, i) => (
               <View key={i} style={[styles.pointMarker, { top: point.y, left: point.x }]}>
                 <Text style={styles.pointNumber}>{i + 1}</Text>
@@ -365,6 +364,7 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
+    objectFit: "cover",
   },
   imageOverlay: {
     position: "absolute",
