@@ -117,9 +117,9 @@ export default function CameraScreen() {
       if (prediction.predictions && reference_prediction.predictions && reference_prediction.predictions.length > 0) {
         const predictions_with_size = await referenceCalculatorMutation.mutateAsync({
           predictions: prediction.predictions,
-          reference_width_cm: 10,
+          reference_width_cm: 7.4,
           reference_width_px: reference_object?.bbox[2] - reference_object?.bbox[0],
-          focal_length_px: 400,
+          focal_length_px: 10,
         })
         console.log("predictions_with_size", predictions_with_size)
         setPictureStatus("Generating annotated image...")
