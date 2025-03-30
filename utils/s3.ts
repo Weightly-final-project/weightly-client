@@ -20,9 +20,10 @@ const uploadFile = async (uri: string, key: string = 'image1.jpg', bucketName: s
 };
 
 const getFiles = (urls: string[], bucketName: string = 'weighlty') => {
-    return Promise.all(urls.map((item) => (
+    return Promise.all(urls.map((item) => {
+        return (
         getFile(item.split('/').splice(3).join('/'), bucketName)
-    )));
+    )}));
 }
 
 const getFile = async (key: string = 'image1.jpg', bucketName: string = 'weighlty') => {
@@ -49,8 +50,8 @@ const getFile = async (key: string = 'image1.jpg', bucketName: string = 'weighlt
             // No data property - will be loaded via URL
         };
     } catch (error) {
-        console.error('Error getting file from S3:', error);
-        throw error;
+        console.error('Error getting file from S3:', error, key, bucketName);
+        return
     }
 };
 
