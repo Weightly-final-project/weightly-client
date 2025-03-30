@@ -1,4 +1,4 @@
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
 import { hooks, ResponseType } from "@/utils/api";
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 16,
-    marginTop: 40,
+    marginTop: Platform.OS === 'ios' ? 40: 0,
     backgroundColor: "white",
     elevation: 2,
   },
