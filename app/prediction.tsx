@@ -28,7 +28,11 @@ export default function PredictionScreen() {
   const router = useRouter()
   const params = useLocalSearchParams()
   const { prediction_id, user, created_at, updated_at, image_s3_uri, annotated_s3_uri, download_image_s3_uri, download_annotated_s3_uri, predictions } = params
-  const parsedPredictions = useMemo(() => predictions ? JSON.parse(predictions as string) : [], [predictions])
+  const parsedPredictions = useMemo(
+    () => predictions ? 
+      JSON.parse(predictions as string)?.filter(( item:any ) => item.class === 'pine') : 
+      [], 
+    [predictions])
   const [pictureStatus, setPictureStatus] = useState<string>("Ready to save")
   // const [points, setPoints] = useState<{ x: number; y: number }[]>([])
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
@@ -43,7 +47,9 @@ export default function PredictionScreen() {
     length_cm: 0.0,
   })
   const dynamoCreateMutation = useDynmo_createMutation()
-
+  const woodCount = useMemo(() => {
+    return parsedPredictions.length
+  }, [parsedPredictions])
   // const handlePress = (
   //   event: GestureResponderEvent,
   //   setPoints: React.Dispatch<React.SetStateAction<{ x: number; y: number }[]>>,
@@ -145,8 +151,9 @@ export default function PredictionScreen() {
               {/* {points.length < 4 && (
                 <Text style={styles.pointInstructionsText}>Tap to mark points ({points.length}/4)</Text>
               )} */}
-              <Text style={styles.pointInstructionsText}>totalVolume(m3): {(totalVolume/1000000).toFixed(3)}</Text>
-              <Text style={styles.pointInstructionsText}> avarage size (cm): {Object.values(avarageSize).map(item => item.toFixed(3)).join('X')}</Text>
+              <Text style={styles.pointInstructionsText}>total volume(m3): {(totalVolume/1000000).toFixed(3)}</Text>
+              <Text style={styles.pointInstructionsText}>size (cm): {Object.values(avarageSize).map(item => item.toFixed(3)).join('X')}</Text>
+              <Text style={styles.pointInstructionsText}>wood count: {woodCount}</Text>
             </View>
             <View style={styles.imageOverlay}>
               <Chip icon="image" style={styles.fileChip} textStyle={styles.chipText}>
