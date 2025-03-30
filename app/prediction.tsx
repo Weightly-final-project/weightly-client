@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react-native"
 import { useEffect, useMemo, useState } from "react"
 import { hooks } from "@/utils/api"
 import { Icon } from "react-native-elements"
+import weight_mapping from "@/utils/weight_mapping.js"
 
 const { useDynmo_createMutation } = hooks
 
@@ -152,7 +153,7 @@ export default function PredictionScreen() {
                 <Text style={styles.pointInstructionsText}>Tap to mark points ({points.length}/4)</Text>
               )} */}
               <Text style={styles.pointInstructionsText}>total volume(m3): {(totalVolume/1000000).toFixed(3)}</Text>
-              <Text style={styles.pointInstructionsText}>weight (kg): {totalVolume * 0.373 / 1000 }</Text>
+              <Text style={styles.pointInstructionsText}>weight (kg): {totalVolume * weight_mapping.pine / 1000 }</Text>
               <Text style={styles.pointInstructionsText}>size (cm): {Object.values(avarageSize).map(item => item.toFixed(3)).join('X')}</Text>
               <Text style={styles.pointInstructionsText}>wood count: {woodCount}</Text>
             </View>
