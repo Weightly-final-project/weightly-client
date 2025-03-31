@@ -1,4 +1,4 @@
-import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
 import { hooks, ResponseType } from "@/utils/api";
@@ -14,6 +14,16 @@ export default function CameraScreen() {
   const [predictions, setPredictions] = useState<ResponseType<"dynmo_get"> | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
+    fetchResult();
+  }, []);
+
+  const handlePredictionPress = (predictionId: string) => {
+    console.log(`Prediction ${predictionId} pressed`)
+    // Navigate to details or perform other actions
+  }
+
+  const fetchResult = () => {
+    setLoading(true);
     const user = "test user"; // Replace with actual user ID
     dynmo_getMutation.mutate({ user }, {
       onSuccess: (pre) => {
@@ -99,11 +109,6 @@ export default function CameraScreen() {
     //     console.error("Error fetching images:", error);
     //   });
     // setLoading(false);
-  }, []);
-
-  const handlePredictionPress = (predictionId: string) => {
-    console.log(`Prediction ${predictionId} pressed`)
-    // Navigate to details or perform other actions
   }
 
   return (
@@ -131,6 +136,12 @@ export default function CameraScreen() {
           }}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={fetchResult}
+            />
+          }
         />
       ) : (
         <View style={styles.emptyContainer}>

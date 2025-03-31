@@ -54,6 +54,10 @@ const PredictionItem = ({ item, onPress }: PredictionItemProps) => {
             <Text style={styles.idLabel}>ID:</Text>
             <Text style={styles.id}>{item.prediction_id}</Text>
           </View>
+        </View>
+
+        <View style={styles.dateContainer}>
+        <Text style={styles.idLabel}>User:</Text>
           <Chip icon="account" style={styles.userChip} textStyle={styles.chipText}>
             {item.user}
           </Chip>
