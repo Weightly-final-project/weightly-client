@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react-native"
 import { useEffect, useMemo, useState } from "react"
 import { hooks } from "@/utils/api"
 import { Icon } from "react-native-elements"
+import { Buffer } from 'buffer';
 import weight_mapping from "@/utils/weight_mapping.js"
 
 const { useDynmo_createMutation } = hooks
@@ -28,7 +29,8 @@ const formatDate = (dateString: string) => {
 export default function PredictionScreen() {
   const router = useRouter()
   const params = useLocalSearchParams()
-  const { prediction_id, user, created_at, updated_at, image_s3_uri, annotated_s3_uri, download_image_s3_uri, download_annotated_s3_uri, predictions } = params
+  const {item, predictions } = params
+  const { prediction_id, user, created_at, updated_at, image_s3_uri, annotated_s3_uri, download_image_s3_uri, download_annotated_s3_uri } = JSON.parse(Buffer.from(item as string, 'base64').toString('utf-8'))
   const parsedPredictions = useMemo(
     () => predictions ? 
       JSON.parse(predictions as string)?.filter(( item:any ) => item.class === 'pine') : 
@@ -128,7 +130,7 @@ export default function PredictionScreen() {
   }, [predictions])
 
 
-  const imageUrl = encodeURI(download_annotated_s3_uri as string);
+  const imageUrl = (download_annotated_s3_uri as string);
   return (
     <View style={styles.container}>
       <View style={styles.header}>

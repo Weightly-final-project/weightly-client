@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Dimensions } from "react-native"
 import { Card, Chip, Button } from "react-native-paper"
 import { Link } from "expo-router"
 import { format } from "date-fns"
+import { Buffer } from 'buffer'
 
 // Helper function to extract filename from S3 URI
 const getFilenameFromS3Uri = (uri: string) => {
@@ -72,7 +73,7 @@ const PredictionItem = ({ item, onPress }: PredictionItemProps) => {
           <Link href={{
             pathname: "/prediction",
             params: {
-              ...item,
+              item: Buffer.from(JSON.stringify(item)).toString("base64"),
               predictions: JSON.stringify(item.predictions),
             },
           }} asChild>
