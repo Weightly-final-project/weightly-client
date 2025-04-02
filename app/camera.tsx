@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 16,
     paddingHorizontal: 16,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#1F9F9F",
   },
   headerTitle: {
     fontSize: 20,
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statusBar: {
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#1F9F9F",
     padding: 8,
     alignItems: "center",
   },
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#1F9F9F",
   },
   previewImage: {
     width: width,
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     padding: 16,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#1F9F9F",
   },
   actionBtn: {
     backgroundColor: "#333333",
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#1F9F9F",
     height: height * 0.7,
   },
   loadingText: {

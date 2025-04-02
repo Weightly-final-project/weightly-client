@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     transform: [{ translateX: -15 }, { translateY: -15 }],
   },
   statusBar: {
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#1F9F9F",
     padding: 8,
     alignItems: "center",
   },
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 16,
     paddingHorizontal: 16,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#1F9F9F",
   },
   backButton: {
     width: 40,

@@ -97,6 +97,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     elevation: 4,
+    backgroundColor: "#1F9F9F",
   },
   cardImage: {
     height: 180,
@@ -131,12 +132,12 @@ const styles = StyleSheet.create({
   idLabel: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#666",
+    color: "#AAA",
     marginRight: 4,
   },
   id: {
     fontSize: 14,
-    color: "#333",
+    color: "#DDD",
     fontFamily: "monospace",
   },
   userChip: {
@@ -150,12 +151,12 @@ const styles = StyleSheet.create({
   dateLabel: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#666",
+    color: "#AAA",
     marginRight: 4,
   },
   date: {
     fontSize: 14,
-    color: "#333",
+    color: "#DDD",
   },
   footer: {
     flexDirection: "row",

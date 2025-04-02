@@ -160,7 +160,7 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#121212",
   },
   header: {
     flexDirection: "row",
@@ -169,13 +169,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     marginTop: Platform.OS === 'ios' ? 40: 0,
-    backgroundColor: "white",
+    backgroundColor: "#1F9F9F",
     elevation: 2,
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: "white",
   },
   cameraButton: {
     backgroundColor: "#6200ee",
