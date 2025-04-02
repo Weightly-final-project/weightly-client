@@ -23,33 +23,33 @@ export default function CameraScreen() {
     dynmo_getMutation.mutate({ user }, {
       onSuccess: (pre) => {
         getFiles(pre.map((item) => item.image_s3_uri), 'weighlty')
-        .then((results) => {
-          const updatedPredictions = pre.map((item, index) => ({
-            ...item,
-            download_image_s3_uri: results[index]?.url,
-          })).filter((item) => item.download_image_s3_uri);
-          setPredictions(updatedPredictions);
-        })
-        .catch((error) => {
-          console.error("Error fetching images:", error);
-        });
+          .then((results) => {
+            const updatedPredictions = pre.map((item, index) => ({
+              ...item,
+              download_image_s3_uri: results[index]?.url,
+            })).filter((item) => item.download_image_s3_uri);
+            setPredictions(updatedPredictions);
+          })
+          .catch((error) => {
+            console.error("Error fetching images:", error);
+          });
   
-      getFiles(pre.map((item) => item.annotated_s3_uri), 'weighlty')
-        .then((results) => {
-          const updatedPredictions = pre.map((item, index) => ({
-            ...item,
-            download_annotated_s3_uri: results[index]?.url,
-          })).filter((item) => item.download_annotated_s3_uri);
-          setPredictions(updatedPredictions);
-        })
-        .catch((error) => {
-          console.error("Error fetching images:", error);
-        });
-      setLoading(false);
-      },
-      onError: (error) => {
-        console.error("Error fetching predictions:", error);
-      }
+        getFiles(pre.map((item) => item.annotated_s3_uri), 'weighlty')
+          .then((results) => {
+            const updatedPredictions = pre.map((item, index) => ({
+              ...item,
+              download_annotated_s3_uri: results[index]?.url,
+            })).filter((item) => item.download_annotated_s3_uri);
+            setPredictions(updatedPredictions);
+          })
+          .catch((error) => {
+            console.error("Error fetching images:", error);
+          });
+        setLoading(false);
+        },
+        onError: (error) => {
+          console.error("Error fetching predictions:", error);
+        }
     });
     // const pre: ResponseType<"dynmo_get"> = [
     //   {
