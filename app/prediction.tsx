@@ -83,15 +83,16 @@ export default function PredictionScreen() {
       router.replace({
         pathname: "/prediction",
         params: {
-          id: result.prediction_id,
-          prediction_id: result.prediction_id,
-          user: "test user",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          image_s3_uri: image_s3_uri,
-          annotated_s3_uri: annotated_s3_uri,
-          download_image_s3_uri: download_image_s3_uri,
-          download_annotated_s3_uri: download_annotated_s3_uri,
+          item: Buffer.from(JSON.stringify({
+            prediction_id: result.prediction_id,
+            user: "test user",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            image_s3_uri: image_s3_uri,
+            annotated_s3_uri: annotated_s3_uri,
+            download_image_s3_uri: download_image_s3_uri,
+            download_annotated_s3_uri: download_annotated_s3_uri,
+          })).toString("base64"),
           predictions: predictions,
         },
       })

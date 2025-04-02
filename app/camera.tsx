@@ -19,6 +19,7 @@ import { uploadFile, getFile } from "../utils/s3"
 import { hooks } from "../utils/api"
 import ImagePickerExample from "../components/pickImage"
 import Permission from "../components/Permission"
+import { Buffer } from "buffer"
 
 // Use your API hooks
 const { usePredictMutation, useOutput_imageMutation, useReference_calculatorMutation } = hooks
@@ -67,15 +68,16 @@ export default function CameraScreen() {
     router.replace({
       pathname: "/prediction",
       params: {
-        id: `temp_prediction_${Date.now()}`,
-        prediction_id: `temp_prediction_${Date.now()}`,
-        user: "test user",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        image_s3_uri: anototatedImage1.image_s3_uri,
-        annotated_s3_uri: anototatedImage1.annotated_s3_uri,
-        download_image_s3_uri: downloadOriginUrl,
-        download_annotated_s3_uri: downloadUrl,
+        item: Buffer.from(JSON.stringify({
+          prediction_id: `temp_prediction_${Date.now()}`,
+          user: "test user",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          image_s3_uri: anototatedImage1.image_s3_uri,
+          annotated_s3_uri: anototatedImage1.annotated_s3_uri,
+          download_image_s3_uri: downloadOriginUrl,
+          download_annotated_s3_uri: downloadUrl,
+        })).toString("base64"),
         predictions: JSON.stringify(anototatedImage1.predictions),
       },
     })
@@ -133,11 +135,11 @@ export default function CameraScreen() {
         setPictureStatus("Processing complete!")
 
         if (pred1.annotated_s3_uri) {
-            setAnnotatedImage1({
-              image_s3_uri: `s3://weighlty/${res1.Key}`,
-              annotated_s3_uri: pred1.annotated_s3_uri,
-              predictions: predictions_with_size,
-            })
+          setAnnotatedImage1({
+            image_s3_uri: `s3://weighlty/${res1.Key}`,
+            annotated_s3_uri: pred1.annotated_s3_uri,
+            predictions: predictions_with_size,
+          })
 
           const origin_image1 = await getFile(res1.Key, "weighlty")
           setDownloadOriginUrl(origin_image1?.url)
