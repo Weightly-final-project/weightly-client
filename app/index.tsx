@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     marginTop: Platform.OS === 'ios' ? 40: 0,
-    backgroundColor: "#1F9F9F",
+    backgroundColor: "#202020",
     elevation: 2,
   },
   title: {

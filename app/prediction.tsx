@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react"
 import { hooks } from "@/utils/api"
 import { Icon } from "react-native-elements"
 import { Buffer } from 'buffer';
-import weight_mapping from "@/utils/weight_mapping.js"
+import weight_mapping from "@/utils/weight_mapping"
 
 const { useDynmo_createMutation } = hooks
 
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     transform: [{ translateX: -15 }, { translateY: -15 }],
   },
   statusBar: {
-    backgroundColor: "#1F9F9F",
+    backgroundColor: "#202020",
     padding: 8,
     alignItems: "center",
   },
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 16,
     paddingHorizontal: 16,
-    backgroundColor: "#1F9F9F",
+    backgroundColor: "#202020",
   },
   backButton: {
     width: 40,

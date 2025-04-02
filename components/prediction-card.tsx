@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     elevation: 4,
-    backgroundColor: "#1F9F9F",
+    backgroundColor: "#202020",
   },
   cardImage: {
     height: 180,

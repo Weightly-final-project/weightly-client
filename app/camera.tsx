@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 16,
     paddingHorizontal: 16,
-    backgroundColor: "#1F9F9F",
+    backgroundColor: "#202020",
   },
   headerTitle: {
     fontSize: 20,
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statusBar: {
-    backgroundColor: "#1F9F9F",
+    backgroundColor: "#202020",
     padding: 8,
     alignItems: "center",
   },
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1F9F9F",
+    backgroundColor: "#202020",
   },
   previewImage: {
     width: width,
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     padding: 16,
-    backgroundColor: "#1F9F9F",
+    backgroundColor: "#202020",
   },
   actionBtn: {
     backgroundColor: "#333333",
