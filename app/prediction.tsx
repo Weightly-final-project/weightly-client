@@ -14,13 +14,21 @@ const { useDynmo_createMutation } = hooks
 export default function PredictionScreen() {
   const router = useRouter()
   const params = useLocalSearchParams()
+  const dynamoCreateMutation = useDynmo_createMutation()
+  
   const { item, predictions } = params
   const { prediction_id, user, created_at, updated_at, image_s3_uri, annotated_s3_uri, download_image_s3_uri, download_annotated_s3_uri } = JSON.parse(Buffer.from(item as string, 'base64').toString('utf-8'))
+  const imageUrl = (download_annotated_s3_uri as string);
+
   const parsedPredictions = useMemo(
     () => predictions ? 
       JSON.parse(predictions as string)?.filter(( item:any ) => item.class === 'pine') : 
       [], 
     [predictions])
+  const woodCount = useMemo(() => {
+    return parsedPredictions.length
+  }, [parsedPredictions])
+
   const [pictureStatus, setPictureStatus] = useState<string>("Ready to save")
   // const [points, setPoints] = useState<{ x: number; y: number }[]>([])
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
@@ -34,10 +42,6 @@ export default function PredictionScreen() {
     height_cm: 0.0,
     length_cm: 0.0,
   })
-  const dynamoCreateMutation = useDynmo_createMutation()
-  const woodCount = useMemo(() => {
-    return parsedPredictions.length
-  }, [parsedPredictions])
   // const handlePress = (
   //   event: GestureResponderEvent,
   //   setPoints: React.Dispatch<React.SetStateAction<{ x: number; y: number }[]>>,
@@ -94,8 +98,6 @@ export default function PredictionScreen() {
     setAvarageSize(avarageSizeCalculator(parsedPredictions))
   }, [predictions])
 
-
-  const imageUrl = (download_annotated_s3_uri as string);
   return (
     <View style={styles.container}>
       <View style={styles.header}>
