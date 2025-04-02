@@ -17,11 +17,6 @@ export default function CameraScreen() {
     fetchResult();
   }, []);
 
-  const handlePredictionPress = (predictionId: string) => {
-    console.log(`Prediction ${predictionId} pressed`)
-    // Navigate to details or perform other actions
-  }
-
   const fetchResult = () => {
     setLoading(true);
     const user = "test user"; // Replace with actual user ID
@@ -132,7 +127,7 @@ export default function CameraScreen() {
           data={predictions}
           keyExtractor={(item) => item.prediction_id}
           renderItem={({ item }) => {
-            return <PredictionItem item={item} onPress={() => handlePredictionPress(item.prediction_id)} />
+            return <PredictionItem item={item} />
           }}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
