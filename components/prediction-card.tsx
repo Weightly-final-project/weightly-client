@@ -45,7 +45,7 @@ const PredictionItem = ({ item, onPress }: PredictionItemProps) => {
 
       <View style={styles.overlay}>
         <Chip icon="image" style={styles.fileChip} textStyle={styles.chipText}>
-          {getFilenameFromS3Uri(item.image_s3_uri)}
+          {getFilenameFromS3Uri(item.annotated_s3_uri)}
         </Chip>
       </View>
 
@@ -86,9 +86,6 @@ const PredictionItem = ({ item, onPress }: PredictionItemProps) => {
     </Card>
   )
 }
-
-const { width } = Dimensions.get("window")
-const cardWidth = width - 32 // Full width minus padding
 
 const styles = StyleSheet.create({
   card: {
