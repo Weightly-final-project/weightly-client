@@ -8,14 +8,9 @@ import { hooks } from "@/utils/api"
 import { Icon } from "react-native-elements"
 import { Buffer } from 'buffer';
 import weight_mapping from "@/utils/weight_mapping"
+import { getFilenameFromS3Uri } from "@/utils/functions"
 
 const { useDynmo_createMutation } = hooks
-
-// Helper function to extract filename from S3 URI
-const getFilenameFromS3Uri = (uri: string) => {
-  const parts = uri.split("/")
-  return parts[parts.length - 1]
-}
 
 // Helper function to format date
 const formatDate = (dateString: string) => {

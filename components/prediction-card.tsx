@@ -3,12 +3,7 @@ import { Card, Chip, Button } from "react-native-paper"
 import { Link } from "expo-router"
 import { format } from "date-fns"
 import { Buffer } from 'buffer'
-
-// Helper function to extract filename from S3 URI
-const getFilenameFromS3Uri = (uri: string) => {
-  const parts = uri.split("/")
-  return parts[parts.length - 1]
-}
+import { getFilenameFromS3Uri } from "@/utils/functions"
 
 // Helper function to format date
 const formatDate = (dateString: string) => {
