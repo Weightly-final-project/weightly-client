@@ -1,25 +1,15 @@
 import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, GestureResponderEvent, TouchableWithoutFeedback, Alert, Image } from "react-native"
 import { useLocalSearchParams, useRouter, Stack } from "expo-router"
 import { Card, Chip, Divider } from "react-native-paper"
-import { format } from "date-fns"
 import { ArrowLeft } from "lucide-react-native"
 import { useEffect, useMemo, useState } from "react"
 import { hooks } from "@/utils/api"
 import { Icon } from "react-native-elements"
 import { Buffer } from 'buffer';
 import weight_mapping from "@/utils/weight_mapping"
-import { getFilenameFromS3Uri } from "@/utils/functions"
+import { getFilenameFromS3Uri, formatDate } from "@/utils/functions"
 
 const { useDynmo_createMutation } = hooks
-
-// Helper function to format date
-const formatDate = (dateString: string) => {
-  try {
-    return format(new Date(dateString), "MMMM d, yyyy 'at' h:mm a")
-  } catch (e) {
-    return dateString
-  }
-}
 
 export default function PredictionScreen() {
   const router = useRouter()

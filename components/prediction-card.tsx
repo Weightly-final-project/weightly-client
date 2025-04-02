@@ -1,18 +1,8 @@
 import { View, Text, StyleSheet, Dimensions } from "react-native"
 import { Card, Chip, Button } from "react-native-paper"
 import { Link } from "expo-router"
-import { format } from "date-fns"
 import { Buffer } from 'buffer'
-import { getFilenameFromS3Uri } from "@/utils/functions"
-
-// Helper function to format date
-const formatDate = (dateString: string) => {
-  try {
-    return format(new Date(dateString), "MMM d, yyyy • h:mm a")
-  } catch (e) {
-    return dateString
-  }
-}
+import { getFilenameFromS3Uri, formatDate } from "@/utils/functions"
 
 type PredictionItemProps = {
   item: {
