@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1F9F9F",
+    backgroundColor: "#202020",
     height: height * 0.7,
   },
   loadingText: {
