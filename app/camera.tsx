@@ -128,7 +128,7 @@ export default function CameraScreen() {
             "object": "pine",
             "confidence": 0.99,
           }],
-          reference_width_cm: 7.4,
+          reference_width_cm: 5.8,
           reference_width_px: reference_object?.bbox[2] - reference_object?.bbox[0],
           focal_length_px: 10,
         })
