@@ -20,6 +20,7 @@ import { hooks } from "../utils/api"
 import ImagePickerExample from "../components/pickImage"
 import Permission from "../components/Permission"
 import { Buffer } from "buffer"
+import { bigBboxCalculator } from "@/utils/functions"
 
 // Use your API hooks
 const { usePredictMutation, useOutput_imageMutation, useReference_calculatorMutation } = hooks
@@ -110,15 +111,23 @@ export default function CameraScreen() {
 
       const reference_object = reference_prediction.predictions?.find((obj: any) => obj.object === "rubiks_cube")
 
+      const parsedPredictions = prediction.predictions.filter((prediction) => prediction.confidence >= 0.5)
+      const bbox = bigBboxCalculator(parsedPredictions);
+
       console.log("reference_prediction", reference_prediction)
-      console.log("prediction", prediction)
+      console.log("prediction", parsedPredictions)
       console.log("reference_object", reference_object)
+      console.log("bbox", bbox)
 
       setPictureStatus("Analyzing objects...")
 
-      if (prediction.predictions && reference_prediction.predictions && reference_prediction.predictions.length > 0) {
+      if (parsedPredictions && bbox && reference_prediction.predictions && reference_prediction.predictions.length > 0) {
         const predictions_with_size = await referenceCalculatorMutation.mutateAsync({
-          predictions: prediction.predictions,
+          predictions: [{
+            "bbox": Object.values(bbox),
+            "object": "pine",
+            "confidence": 0.99,
+          }],
           reference_width_cm: 7.4,
           reference_width_px: reference_object?.bbox[2] - reference_object?.bbox[0],
           focal_length_px: 10,
@@ -129,7 +138,10 @@ export default function CameraScreen() {
         const pred1 = await outputImageMutation.mutateAsync({
           user: "test user",
           image_s3_uri: `s3://weighlty/${res1.Key}`,
-          predictions: predictions_with_size,
+          predictions: [...predictions_with_size, ...(parsedPredictions.map((obj: any) => ({
+            ...obj,
+            "class": obj.object,
+          })) as any[])],
         })
 
         setPictureStatus("Processing complete!")

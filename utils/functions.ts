@@ -50,3 +50,18 @@ export const avarageSizeCalculator = (predictions: any[]) => {
       length_cm: 0,
     }
 };
+
+export const bigBboxCalculator = (predictions: readonly any[]) => {
+  return predictions.
+  filter((prediction) => prediction.object == "pine")
+  .reduce((acc: any, prediction: any) => {
+    if (prediction.bbox) {
+      const [ minX, minY, maxX, maxY ] = prediction.bbox
+      acc.minX = Math.min(acc.minX, minX)
+      acc.minY = Math.min(acc.minY, minY)
+      acc.maxX = Math.max(acc.maxX, maxX)
+      acc.maxY = Math.max(acc.maxY, maxY)
+    }
+    return acc
+  }, { minX: Infinity, minY: Infinity, maxX: 0, maxY: 0 })
+}
