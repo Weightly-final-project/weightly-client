@@ -1,26 +1,33 @@
-import { Button, View, StyleSheet } from 'react-native';
-import {launchImageLibraryAsync} from 'expo-image-picker';
-import { CameraCapturedPicture } from 'expo-camera';
+import { Button, View, StyleSheet } from "react-native";
+import { launchImageLibraryAsync } from "expo-image-picker";
+import { CameraCapturedPicture } from "expo-camera";
+import ImagePicker from "react-native-image-crop-picker";
 
 export default function ImagePickerExample(props: {
-    processImage: (photo: CameraCapturedPicture | undefined) => void;
+  processImage: (photo: CameraCapturedPicture | undefined) => void;
 }) {
-
   const pickImage = async () => {
-    // No permissions request is necessary for launching the image library
-    let result = await launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-      exif: true,
-    });
+    try {
+      const result = await ImagePicker.openPicker({
+        width: 300,
+        height: 400,
+        cropping: true,
+        includeExif: true,
+      });
 
-    const photo = result.assets?.at(0) as CameraCapturedPicture | undefined;
+      const photo = {
+        uri: result.path,
+        width: result.width,
+        height: result.height,
+        exif: result.exif,
+      } as CameraCapturedPicture;
 
-    if (photo)
-      props.processImage(photo);
+      console.log("Cropped image metadata:", photo.exif);
 
+      if (photo) props.processImage(photo);
+    } catch (error) {
+      console.error("Error picking image:", error);
+    }
   };
 
   return (
@@ -33,7 +40,7 @@ export default function ImagePickerExample(props: {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  }
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
