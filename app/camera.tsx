@@ -175,6 +175,8 @@ export default function CameraScreen() {
             reference_width_px:
               reference_object?.bbox[2] - reference_object?.bbox[0],
             focal_length_px: 10,
+            reference_height_px:
+              reference_object?.bbox[3] - reference_object?.bbox[1],
           });
         console.log("predictions_with_size", predictions_with_size);
         setPictureStatus("Generating annotated image...");

@@ -39,6 +39,7 @@ const API = {
       reference_width_cm: Number(), // 10
       reference_width_px: Number(), // 
       focal_length_px: Number(), // 400
+      reference_height_px: Number(), // 10
     },
     responseExample: [{
       "class": String(),
