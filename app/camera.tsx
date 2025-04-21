@@ -1,6 +1,10 @@
-import type React from "react"
-import { useRef, useState, useEffect } from "react"
-import { CameraView, useCameraPermissions, type CameraCapturedPicture } from "expo-camera"
+import type React from "react";
+import { useRef, useState, useEffect } from "react";
+import {
+  CameraView,
+  useCameraPermissions,
+  type CameraCapturedPicture,
+} from "expo-camera";
 import {
   View,
   Text,
@@ -11,177 +15,263 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
-} from "react-native"
-import { useRouter } from "expo-router"
-import { Icon } from "react-native-elements"
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Icon } from "react-native-elements";
 
-import { uploadFile, getFile } from "../utils/s3"
-import { hooks } from "../utils/api"
-import ImagePickerExample from "../components/pickImage"
-import Permission from "../components/Permission"
-import { Buffer } from "buffer"
-import { bigBboxCalculator } from "@/utils/functions"
+import { uploadFile, getFile } from "../utils/s3";
+import { hooks } from "../utils/api";
+import ImagePickerExample from "../components/pickImage";
+import Permission from "../components/Permission";
+import { Buffer } from "buffer";
+import { bigBboxCalculator } from "@/utils/functions";
 
 // Use your API hooks
-const { usePredictMutation, useOutput_imageMutation, useReference_calculatorMutation } = hooks
+const {
+  usePredictMutation,
+  useOutput_imageMutation,
+  useReference_calculatorMutation,
+} = hooks;
 
 const responseExample = {
   image_s3_uri: String(),
   annotated_s3_uri: String(),
   predictions: [] as readonly any[],
-}
+};
 
-type anototatedImageType = typeof responseExample
+type anototatedImageType = typeof responseExample;
 
 export default function CameraScreen() {
-  const router = useRouter()
-  const [pictureStatus, setPictureStatus] = useState<string>("Ready to capture")
-  const [PictureData1, setPictureData1] = useState<CameraCapturedPicture | undefined>(undefined)
-  const [anototatedImage1, setAnnotatedImage1] = useState<anototatedImageType>(responseExample)
-  const [isProcessing, setIsProcessing] = useState<boolean>(false)
-  const [downloadUrl, setDownloadUrl] = useState<string | undefined>(undefined)
-  const [downloadOriginUrl, setDownloadOriginUrl] = useState<string | undefined>(undefined)
+  console.log("Initializing CameraScreen component");
 
-  const [permission, requestPermissions] = useCameraPermissions()
+  const router = useRouter();
+  console.log("useRouter initialized");
 
-  const cameraRef = useRef<CameraView>(null)
+  const [pictureStatus, setPictureStatus] =
+    useState<string>("Ready to capture");
+  console.log("useState for pictureStatus initialized");
 
+  const [PictureData1, setPictureData1] = useState<
+    CameraCapturedPicture | undefined
+  >(undefined);
+  console.log("useState for PictureData1 initialized");
+
+  const [anototatedImage1, setAnnotatedImage1] =
+    useState<anototatedImageType>(responseExample);
+  console.log("useState for anototatedImage1 initialized");
+
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  console.log("useState for isProcessing initialized");
+
+  const [downloadUrl, setDownloadUrl] = useState<string | undefined>(undefined);
+  console.log("useState for downloadUrl initialized");
+
+  const [downloadOriginUrl, setDownloadOriginUrl] = useState<
+    string | undefined
+  >(undefined);
+  console.log("useState for downloadOriginUrl initialized");
+
+  const [step, setStep] = useState<number>(1);
+  console.log("useState for step initialized");
+
+  const [photosTaken, setPhotosTaken] = useState<number>(0);
+  console.log("useState for photosTaken initialized");
+
+  const [permission, requestPermissions] = useCameraPermissions();
+  console.log("useCameraPermissions initialized");
+
+  const cameraRef = useRef<CameraView>(null);
+  console.log("useRef for cameraRef initialized");
 
   // Replace your sendFile function with hooks
-  const predictMutation = usePredictMutation()
-  const outputImageMutation = useOutput_imageMutation()
-  const referenceCalculatorMutation = useReference_calculatorMutation()
+  const predictMutation = usePredictMutation();
+  const outputImageMutation = useOutput_imageMutation();
+  const referenceCalculatorMutation = useReference_calculatorMutation();
 
   // Navigate to prediction screen after saving
   useEffect(() => {
-    if (downloadUrl && anototatedImage1.image_s3_uri && anototatedImage1.annotated_s3_uri) {
-      navigateToPrediction()
+    console.log("useEffect for navigation initialized");
+    if (
+      downloadUrl &&
+      anototatedImage1.image_s3_uri &&
+      anototatedImage1.annotated_s3_uri
+    ) {
+      navigateToPrediction();
     }
-  }, [downloadUrl, downloadOriginUrl, anototatedImage1])
+  }, [downloadUrl, downloadOriginUrl, anototatedImage1]);
+
+  useEffect(() => {
+    if (photosTaken === 2) {
+      console.log("Two photos taken, ready to proceed.");
+      navigateToPrediction();
+    }
+  }, [photosTaken]);
 
   if (!permission || !permission.granted) {
-    return <Permission permissionType={"camera"} requestPermissions={requestPermissions} />
+    console.log("Rendering Permission component");
+    return (
+      <Permission
+        permissionType={"camera"}
+        requestPermissions={requestPermissions}
+      />
+    );
   }
 
   const navigateToPrediction = () => {
-    if (!anototatedImage1.image_s3_uri || !anototatedImage1.annotated_s3_uri) return
+    if (!anototatedImage1.image_s3_uri || !anototatedImage1.annotated_s3_uri)
+      return;
 
     router.replace({
       pathname: "/prediction",
       params: {
-        item: Buffer.from(JSON.stringify({
-          prediction_id: `temp_prediction_${Date.now()}`,
-          user: "test user",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          image_s3_uri: anototatedImage1.image_s3_uri,
-          annotated_s3_uri: anototatedImage1.annotated_s3_uri,
-          download_image_s3_uri: downloadOriginUrl,
-          download_annotated_s3_uri: downloadUrl,
-        })).toString("base64"),
+        item: Buffer.from(
+          JSON.stringify({
+            prediction_id: `temp_prediction_${Date.now()}`,
+            user: "test user",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            image_s3_uri: anototatedImage1.image_s3_uri,
+            annotated_s3_uri: anototatedImage1.annotated_s3_uri,
+            download_image_s3_uri: downloadOriginUrl,
+            download_annotated_s3_uri: downloadUrl,
+          })
+        ).toString("base64"),
         predictions: JSON.stringify(anototatedImage1.predictions),
       },
-    })
-  }
+    });
+  };
 
   const sendPicture = async (uri: string) => {
     try {
-      setIsProcessing(true)
-      setPictureStatus("Uploading image...")
+      setIsProcessing(true);
+      setPictureStatus("Uploading image...");
 
-      const res1 = await uploadFile(uri, `original_images/test-user_${Date.now()}_image1.jpg`)
+      const res1 = await uploadFile(
+        uri,
+        `original_images/test-user_${Date.now()}_image1.jpg`
+      );
 
       const formData1 = {
         user: "test user",
         image_s3_uri: `s3://weighlty/${res1.Key}`,
         model_s3_uri: "s3://weighlty/pine.pt",
-      } as const
+      } as const;
 
       const formData2 = {
         user: "test user",
         image_s3_uri: `s3://weighlty/${res1.Key}`,
         model_s3_uri: "s3://rbuixcube/large_files/best.pt",
-      } as const
+      } as const;
 
-      setPictureStatus("Processing image...")
+      setPictureStatus("Processing image...");
 
       // Use your hooks instead of sendFile
-      const prediction = await predictMutation.mutateAsync(formData1)
-      const reference_prediction = await predictMutation.mutateAsync(formData2)
+      const prediction = await predictMutation.mutateAsync(formData1);
+      const reference_prediction = await predictMutation.mutateAsync(formData2);
 
-      const reference_object = reference_prediction.predictions?.find((obj: any) => obj.object === "rubiks_cube")
+      const reference_object = reference_prediction.predictions?.find(
+        (obj: any) => obj.object === "rubiks_cube"
+      );
 
-      const parsedPredictions = prediction.predictions.filter((prediction) => prediction.confidence >= 0.5)
+      const parsedPredictions = prediction.predictions.filter(
+        (prediction) => prediction.confidence >= 0.5
+      );
       const bbox = bigBboxCalculator(parsedPredictions);
 
-      console.log("reference_prediction", reference_prediction)
-      console.log("prediction", parsedPredictions)
-      console.log("reference_object", reference_object)
-      console.log("bbox", bbox)
+      console.log("reference_prediction", reference_prediction);
+      console.log("prediction", parsedPredictions);
+      console.log("reference_object", reference_object);
+      console.log("bbox", bbox);
 
-      setPictureStatus("Analyzing objects...")
+      setPictureStatus("Analyzing objects...");
 
-      if (parsedPredictions && bbox && reference_prediction.predictions && reference_prediction.predictions.length > 0) {
-        const predictions_with_size = await referenceCalculatorMutation.mutateAsync({
-          predictions: [{
-            "bbox": Object.values(bbox),
-            "object": "pine",
-            "confidence": 0.99,
-          }],
-          reference_width_cm: 5.8,
-          reference_width_px: reference_object?.bbox[2] - reference_object?.bbox[0],
-          focal_length_px: 10,
-        })
-        console.log("predictions_with_size", predictions_with_size)
-        setPictureStatus("Generating annotated image...")
+      if (
+        parsedPredictions &&
+        bbox &&
+        reference_prediction.predictions &&
+        reference_prediction.predictions.length > 0
+      ) {
+        const predictions_with_size =
+          await referenceCalculatorMutation.mutateAsync({
+            predictions: [
+              {
+                bbox: Object.values(bbox),
+                object: "pine",
+                confidence: 0.99,
+              },
+            ],
+            reference_width_cm: 5.8,
+            reference_width_px:
+              reference_object?.bbox[2] - reference_object?.bbox[0],
+            focal_length_px: 10,
+          });
+        console.log("predictions_with_size", predictions_with_size);
+        setPictureStatus("Generating annotated image...");
 
         const pred1 = await outputImageMutation.mutateAsync({
           user: "test user",
           image_s3_uri: `s3://weighlty/${res1.Key}`,
-          predictions: [...predictions_with_size, ...(parsedPredictions.map((obj: any) => ({
-            ...obj,
-            "class": obj.object,
-          })) as any[])],
-        })
+          predictions: [
+            ...predictions_with_size,
+            ...(parsedPredictions.map((obj: any) => ({
+              ...obj,
+              class: obj.object,
+            })) as any[]),
+          ],
+        });
 
-        setPictureStatus("Processing complete!")
+        setPictureStatus("Processing complete!");
 
         if (pred1.annotated_s3_uri) {
           setAnnotatedImage1({
             image_s3_uri: `s3://weighlty/${res1.Key}`,
             annotated_s3_uri: pred1.annotated_s3_uri,
             predictions: predictions_with_size,
-          })
+          });
 
-          const origin_image1 = await getFile(res1.Key, "weighlty")
-          setDownloadOriginUrl(origin_image1?.url)
+          const origin_image1 = await getFile(res1.Key, "weighlty");
+          setDownloadOriginUrl(origin_image1?.url);
 
-          const annotated_image1 = await getFile(pred1.annotated_s3_uri.split("/").splice(3).join("/"), "weighlty")
-          setDownloadUrl(annotated_image1?.url)
-          setIsProcessing(false)
-          return annotated_image1?.url
+          const annotated_image1 = await getFile(
+            pred1.annotated_s3_uri.split("/").splice(3).join("/"),
+            "weighlty"
+          );
+          setDownloadUrl(annotated_image1?.url);
+          setIsProcessing(false);
+          return annotated_image1?.url;
         }
       } else {
-        setPictureStatus("No objects detected")
-        Alert.alert("No objects detected", "Please try again with a clearer image or different angle", [{ text: "OK" }])
+        setPictureStatus("No objects detected");
+        Alert.alert(
+          "No objects detected",
+          "Please try again with a clearer image or different angle",
+          [{ text: "OK" }]
+        );
       }
 
-      setIsProcessing(false)
+      setIsProcessing(false);
     } catch (e) {
-      console.error(e)
-      setPictureStatus("Error processing image")
-      Alert.alert("Processing Error", "There was an error processing your image. Please try again.", [{ text: "OK" }])
-      setIsProcessing(false)
-      return
+      console.error(e);
+      setPictureStatus("Error processing image");
+      Alert.alert(
+        "Processing Error",
+        "There was an error processing your image. Please try again.",
+        [{ text: "OK" }]
+      );
+      setIsProcessing(false);
+      return;
     }
-  }
+  };
 
   if (PictureData1) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="light-content" />
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => setPictureData1(undefined)}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => setPictureData1(undefined)}
+          >
             <Icon name="arrow-back" type="material" color="white" size={24} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Front View</Text>
@@ -195,7 +285,10 @@ export default function CameraScreen() {
               <Text style={styles.loadingText}>{pictureStatus}</Text>
             </View>
           ) : (
-            <Image source={{ uri: PictureData1.uri }} style={styles.previewImage} />
+            <Image
+              source={{ uri: PictureData1.uri }}
+              style={styles.previewImage}
+            />
           )}
         </View>
 
@@ -210,7 +303,7 @@ export default function CameraScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    )
+    );
   }
 
   const takePicture = async () => {
@@ -219,32 +312,50 @@ export default function CameraScreen() {
         exif: true,
         quality: 0.8,
         skipProcessing: false,
-      })
-      processImage(photo)
+      });
+      processImage(photo);
     }
-  }
+  };
 
   const processImage = (photo: CameraCapturedPicture | undefined) => {
-    if (!photo) return
+    if (!photo) return;
 
     if (photo?.exif?.Orientation === 6) {
-      const temp = photo.width
-      photo.width = photo.height
-      photo.height = temp
+      const temp = photo.width;
+      photo.width = photo.height;
+      photo.height = temp;
     }
-    const { width, height, uri } = photo
+    const { width, height, uri } = photo;
 
-    setPictureData1({ width, height, uri })
+    setPictureData1({ width, height, uri });
 
     sendPicture(uri).then((annotated_photo) => {
-      setPictureData1({ width, height, uri: annotated_photo || uri })
-    })
-  }
+      setPictureData1({ width, height, uri: annotated_photo || uri });
+    });
+  };
+
+  const handleCapture = () => {
+    if (photosTaken < 2) {
+      takePicture();
+      setPhotosTaken(photosTaken + 1);
+      setStep(step === 1 ? 2 : 1);
+    }
+  };
+
+  const renderInstructions = () => {
+    return step === 1
+      ? "Align the phone horizontally and take a photo from above."
+      : "Align the phone vertically and take a photo from the side.";
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <View style={styles.cameraHeader}>
-        <TouchableOpacity style={styles.cameraHeaderButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.cameraHeaderButton}
+          onPress={() => router.back()}
+        >
           <Icon name="arrow-back" type="material" color="white" size={24} />
         </TouchableOpacity>
         <Text style={styles.cameraTitle}>Capture or choose a picture</Text>
@@ -255,9 +366,7 @@ export default function CameraScreen() {
         <View style={styles.cameraOverlay}>
           <View style={styles.cameraInstructions}>
             <View style={styles.instructionBubble}>
-              <Text style={styles.instructionText}>
-                Take a picture with pine wood and rubiks cube
-              </Text>
+              <Text style={styles.instructionText}>{renderInstructions()}</Text>
             </View>
           </View>
 
@@ -267,10 +376,22 @@ export default function CameraScreen() {
 
           <View style={styles.cameraControls}>
             <TouchableOpacity style={styles.galleryButton}>
-              <ImagePickerExample processImage={processImage} />
+              <ImagePickerExample
+                processImage={processImage}
+                updatePhotosTaken={() => {
+                  if (photosTaken < 2) {
+                    setPhotosTaken(photosTaken + 1);
+                    setStep(step === 1 ? 2 : 1);
+                  }
+                }}
+              />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.captureButton} onPress={takePicture} disabled={isProcessing}>
+            <TouchableOpacity
+              style={styles.captureButton}
+              onPress={handleCapture}
+              disabled={isProcessing}
+            >
               <View style={styles.captureButtonInner} />
             </TouchableOpacity>
 
@@ -279,10 +400,10 @@ export default function CameraScreen() {
         </View>
       </CameraView>
     </View>
-  )
+  );
 }
 
-const { width, height } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window");
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -396,14 +517,6 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
     paddingHorizontal: 30,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  galleryButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   captureButton: {
     width: 80,
@@ -531,5 +644,12 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
   },
-})
-
+  galleryButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});

@@ -1,30 +1,28 @@
 import { Button, View, StyleSheet } from "react-native";
 import { launchImageLibraryAsync } from "expo-image-picker";
 import { CameraCapturedPicture } from "expo-camera";
-import ImagePicker from "react-native-image-crop-picker";
 
 export default function ImagePickerExample(props: {
   processImage: (photo: CameraCapturedPicture | undefined) => void;
+  updatePhotosTaken: () => void;
 }) {
   const pickImage = async () => {
     try {
-      const result = await ImagePicker.openPicker({
-        width: 300,
-        height: 400,
-        cropping: true,
-        includeExif: true,
+      let result = await launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+        exif: true,
       });
 
-      const photo = {
-        uri: result.path,
-        width: result.width,
-        height: result.height,
-        exif: result.exif,
-      } as CameraCapturedPicture;
+      const photo = result.assets?.at(0) as CameraCapturedPicture | undefined;
 
-      console.log("Cropped image metadata:", photo.exif);
-
-      if (photo) props.processImage(photo);
+      if (photo) {
+        console.log("Cropped image metadata:", photo.exif);
+        props.processImage(photo);
+        props.updatePhotosTaken();
+      }
     } catch (error) {
       console.error("Error picking image:", error);
     }
