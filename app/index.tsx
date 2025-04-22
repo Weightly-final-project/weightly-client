@@ -8,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { Link } from "expo-router";
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { hooks, ResponseType } from "@/utils/api";
 import { ActivityIndicator, Button } from "react-native-paper";
 import PredictionItem from "../components/prediction-card";
@@ -29,8 +29,8 @@ export default function PredictionListScreen() {
   const fetchResult = useCallback(() => {
     setLoading(true);
 
-    // Always use "test user" for demo/development purposes
-    const userId = "test user";
+    // Use the authenticated user's username if available, otherwise fallback to guest
+    const userId = user?.username || "guest";
 
     console.log("Fetching predictions for user:", userId);
 
@@ -113,13 +113,13 @@ export default function PredictionListScreen() {
         },
       }
     );
-  }, []); // Empty dependency array
+  }, [user?.username]); // Update dependency array to include user
 
-  // Only run on mount, not when fetchResult changes
+  // Run when component mounts or user changes
   useEffect(() => {
-    console.log("Predictions screen mounted, fetching data");
+    console.log("Predictions screen mounted or user changed, fetching data");
     fetchResult();
-  }, []); // Empty dependency array
+  }, [fetchResult]); // Update dependency array
 
   const handleRefresh = () => {
     console.log("Manual refresh triggered");
@@ -145,18 +145,26 @@ export default function PredictionListScreen() {
             <Text style={styles.loadingText}>Loading predictions...</Text>
           </View>
         ) : predictions && predictions.length > 0 ? (
-          <FlatList
-            data={predictions}
-            keyExtractor={(item) => item.prediction_id}
-            renderItem={({ item }) => {
-              return <PredictionItem item={item} />;
-            }}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
-            }
-          />
+          <>
+            <Text style={styles.pullToRefreshHint}>Pull down to refresh</Text>
+            <FlatList
+              data={predictions}
+              keyExtractor={(item) => item.prediction_id}
+              renderItem={({ item }) => {
+                return <PredictionItem item={item} />;
+              }}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={loading}
+                  onRefresh={handleRefresh}
+                  colors={["#6200ee"]}
+                  tintColor="#6200ee"
+                />
+              }
+            />
+          </>
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No predictions found</Text>
@@ -217,5 +225,12 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: "#6200ee",
+  },
+  pullToRefreshHint: {
+    textAlign: "center",
+    color: "#999",
+    fontSize: 12,
+    paddingBottom: 8,
+    paddingHorizontal: 16,
   },
 });

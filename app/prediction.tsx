@@ -9,11 +9,12 @@ import {
   TouchableWithoutFeedback,
   Alert,
   Image,
+  RefreshControl,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { Card, Chip, Divider } from "react-native-paper";
 import { ArrowLeft } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { hooks } from "@/utils/api";
 import { Icon } from "react-native-elements";
 import { Buffer } from "buffer";
@@ -24,6 +25,7 @@ import {
   totalVolumeCalculator,
   avarageSizeCalculator,
 } from "@/utils/functions";
+import { useAuth } from "@/utils/AuthContext";
 
 const { useDynmo_createMutation } = hooks;
 
@@ -31,11 +33,12 @@ export default function PredictionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const dynamoCreateMutation = useDynmo_createMutation();
+  const { user } = useAuth();
+  const userId = user?.username || "guest";
 
   const { item, predictions } = params;
   const {
     prediction_id,
-    user,
     created_at,
     updated_at,
     image_s3_uri,
@@ -59,7 +62,6 @@ export default function PredictionScreen() {
   }, [parsedPredictions]);
 
   const [pictureStatus, setPictureStatus] = useState<string>("Ready to save");
-  // const [points, setPoints] = useState<{ x: number; y: number }[]>([])
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [totalVolume, setTotalVolume] = useState<number>(0.0);
   const [avarageSize, setAvarageSize] = useState<{
@@ -71,15 +73,7 @@ export default function PredictionScreen() {
     height_cm: 0.0,
     length_cm: 0.0,
   });
-  // const handlePress = (
-  //   event: GestureResponderEvent,
-  //   setPoints: React.Dispatch<React.SetStateAction<{ x: number; y: number }[]>>,
-  //   pointsArray: { x: number; y: number }[],
-  // ) => {
-  //   if (pointsArray.length >= 4) return
-  //   const { locationX, locationY } = event.nativeEvent
-  //   setPoints([...pointsArray, { x: locationX, y: locationY }])
-  // }
+  const [refreshing, setRefreshing] = useState(false);
 
   const saveResults = async () => {
     try {
@@ -92,7 +86,7 @@ export default function PredictionScreen() {
           annotated_s3_uri: annotated_s3_uri as string,
           predictions: parsedPredictions,
         },
-        user: "test user",
+        user: userId,
       });
 
       setPictureStatus("Results saved successfully!");
@@ -104,7 +98,7 @@ export default function PredictionScreen() {
           item: Buffer.from(
             JSON.stringify({
               prediction_id: result.prediction_id,
-              user: "test user",
+              user: userId,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
               image_s3_uri: image_s3_uri,
@@ -128,6 +122,19 @@ export default function PredictionScreen() {
     }
   };
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+
+    // Reload all data
+    setTotalVolume(totalVolumeCalculator(parsedPredictions));
+    setAvarageSize(avarageSizeCalculator(parsedPredictions));
+
+    // Simulate a delay for the refresh animation
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, [parsedPredictions]);
+
   useEffect(() => {
     setTotalVolume(totalVolumeCalculator(parsedPredictions));
     setAvarageSize(avarageSizeCalculator(parsedPredictions));
@@ -146,22 +153,22 @@ export default function PredictionScreen() {
         <View></View>
       </View>
 
+      <Text style={styles.pullToRefreshHint}>Pull down to refresh</Text>
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#6200ee"]}
+            tintColor="#6200ee"
+          />
+        }
       >
-        {/* <TouchableWithoutFeedback disabled={isProcessing} onPress={(e) => handlePress(e, setPoints, points)}> */}
         <View style={styles.imageContainer}>
           <Image source={{ uri: imageUrl }} style={styles.image} />
-          {/* {points.map((point, i) => (
-              <View key={i} style={[styles.pointMarker, { top: point.y, left: point.x }]}>
-                <Text style={styles.pointNumber}>{i + 1}</Text>
-              </View>
-            ))} */}
           <View style={styles.pointInstructions}>
-            {/* {points.length < 4 && (
-                <Text style={styles.pointInstructionsText}>Tap to mark points ({points.length}/4)</Text>
-              )} */}
             <Text style={styles.pointInstructionsText}>
               total volume(m3): {(totalVolume / 1000000).toFixed(3)}
             </Text>
@@ -190,7 +197,6 @@ export default function PredictionScreen() {
             </Chip>
           </View>
         </View>
-        {/* </TouchableWithoutFeedback> */}
 
         <View style={styles.detailsContainer}>
           <View style={styles.section}>
@@ -208,7 +214,7 @@ export default function PredictionScreen() {
                 style={styles.userChip}
                 textStyle={styles.userChipText}
               >
-                {user}
+                {userId}
               </Chip>
             </View>
 
@@ -264,16 +270,6 @@ export default function PredictionScreen() {
             <Text style={styles.statusText}>{pictureStatus}</Text>
           </View>
 
-          {/* <TouchableOpacity
-            style={[styles.actionBtn, isProcessing && styles.disabledButton]}
-            disabled={isProcessing}
-            onPress={() => {
-              setPoints([])
-            }}
-          >
-            <Icon name="delete" type="material" color="white" size={24} />
-            <Text style={styles.actionBtnText}>Clear Points</Text>
-          </TouchableOpacity> */}
           {(prediction_id as string).split("_")[0] === "temp" && (
             <>
               <TouchableOpacity
@@ -281,12 +277,8 @@ export default function PredictionScreen() {
                   styles.actionBtn,
                   styles.primaryButton,
                   isProcessing && styles.disabledButton,
-                  // (points.length < 4) && styles.disabledButton,
                 ]}
-                disabled={
-                  isProcessing
-                  // || points.length < 4
-                }
+                disabled={isProcessing}
                 onPress={saveResults}
               >
                 <Icon name="save" type="material" color="white" size={24} />
@@ -500,5 +492,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     borderColor: "#6200ee",
+  },
+  pullToRefreshHint: {
+    textAlign: "center",
+    color: "#999",
+    fontSize: 12,
+    paddingVertical: 4,
+    backgroundColor: "#202020",
   },
 });

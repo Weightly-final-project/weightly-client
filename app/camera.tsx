@@ -29,6 +29,7 @@ import CameraHeader from "../components/CameraHeader";
 import CameraControls from "../components/CameraControls";
 import ImagePreview from "../components/ImagePreview";
 import AppHeader from "../components/AppHeader";
+import { useAuth } from "@/utils/AuthContext";
 
 // Use your API hooks
 const {
@@ -47,6 +48,9 @@ type anototatedImageType = typeof responseExample;
 
 export default function CameraScreen() {
   const router = useRouter();
+  const { user } = useAuth(); // Get authenticated user
+  const userId = user?.username || "guest"; // Use username or fallback to "guest"
+
   const [pictureStatus, setPictureStatus] =
     useState<string>("Ready to capture");
   const [PictureData1, setPictureData1] = useState<
@@ -102,7 +106,7 @@ export default function CameraScreen() {
         item: Buffer.from(
           JSON.stringify({
             prediction_id: `temp_prediction_${Date.now()}`,
-            user: "test user",
+            user: userId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             image_s3_uri: anototatedImage1.image_s3_uri,
@@ -123,17 +127,17 @@ export default function CameraScreen() {
 
       const res1 = await uploadFile(
         uri,
-        `original_images/test-user_${Date.now()}_image1.jpg`
+        `original_images/${userId}_${Date.now()}_image1.jpg`
       );
 
       const formData1 = {
-        user: "test user",
+        user: userId,
         image_s3_uri: `s3://weighlty/${res1.Key}`,
         model_s3_uri: "s3://weighlty/pine.pt",
       } as const;
 
       const formData2 = {
-        user: "test user",
+        user: userId,
         image_s3_uri: `s3://weighlty/${res1.Key}`,
         model_s3_uri: "s3://rbuixcube/large_files/best.pt",
       } as const;
@@ -186,7 +190,7 @@ export default function CameraScreen() {
         setPictureStatus("Generating annotated image...");
 
         const pred1 = await outputImageMutation.mutateAsync({
-          user: "test user",
+          user: userId,
           image_s3_uri: `s3://weighlty/${res1.Key}`,
           predictions: [
             ...predictions_with_size,
