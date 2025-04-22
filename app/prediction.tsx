@@ -1,47 +1,76 @@
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, GestureResponderEvent, TouchableWithoutFeedback, Alert, Image } from "react-native"
-import { useLocalSearchParams, useRouter, Stack } from "expo-router"
-import { Card, Chip, Divider } from "react-native-paper"
-import { ArrowLeft } from "lucide-react-native"
-import { useEffect, useMemo, useState } from "react"
-import { hooks } from "@/utils/api"
-import { Icon } from "react-native-elements"
-import { Buffer } from 'buffer';
-import weight_mapping from "@/utils/weight_mapping"
-import { getFilenameFromS3Uri, formatDate, totalVolumeCalculator, avarageSizeCalculator } from "@/utils/functions"
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Dimensions,
+  TouchableOpacity,
+  GestureResponderEvent,
+  TouchableWithoutFeedback,
+  Alert,
+  Image,
+} from "react-native";
+import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { Card, Chip, Divider } from "react-native-paper";
+import { ArrowLeft } from "lucide-react-native";
+import { useEffect, useMemo, useState } from "react";
+import { hooks } from "@/utils/api";
+import { Icon } from "react-native-elements";
+import { Buffer } from "buffer";
+import weight_mapping from "@/utils/weight_mapping";
+import {
+  getFilenameFromS3Uri,
+  formatDate,
+  totalVolumeCalculator,
+  avarageSizeCalculator,
+} from "@/utils/functions";
 
-const { useDynmo_createMutation } = hooks
+const { useDynmo_createMutation } = hooks;
 
 export default function PredictionScreen() {
-  const router = useRouter()
-  const params = useLocalSearchParams()
-  const dynamoCreateMutation = useDynmo_createMutation()
-  
-  const { item, predictions } = params
-  const { prediction_id, user, created_at, updated_at, image_s3_uri, annotated_s3_uri, download_image_s3_uri, download_annotated_s3_uri } = JSON.parse(Buffer.from(item as string, 'base64').toString('utf-8'))
-  const imageUrl = (download_annotated_s3_uri as string);
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const dynamoCreateMutation = useDynmo_createMutation();
+
+  const { item, predictions } = params;
+  const {
+    prediction_id,
+    user,
+    created_at,
+    updated_at,
+    image_s3_uri,
+    annotated_s3_uri,
+    download_image_s3_uri,
+    download_annotated_s3_uri,
+  } = JSON.parse(Buffer.from(item as string, "base64").toString("utf-8"));
+  const imageUrl = download_annotated_s3_uri as string;
 
   const parsedPredictions = useMemo(
-    () => predictions ? 
-      JSON.parse(predictions as string)?.filter(( item:any ) => item.class === 'pine') : 
-      [], 
-    [predictions])
+    () =>
+      predictions
+        ? JSON.parse(predictions as string)?.filter(
+            (item: any) => item.class === "pine"
+          )
+        : [],
+    [predictions]
+  );
   const woodCount = useMemo(() => {
-    return parsedPredictions.length
-  }, [parsedPredictions])
+    return parsedPredictions.length;
+  }, [parsedPredictions]);
 
-  const [pictureStatus, setPictureStatus] = useState<string>("Ready to save")
+  const [pictureStatus, setPictureStatus] = useState<string>("Ready to save");
   // const [points, setPoints] = useState<{ x: number; y: number }[]>([])
-  const [isProcessing, setIsProcessing] = useState<boolean>(false)
-  const [totalVolume, setTotalVolume] = useState<number>(0.0)
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [totalVolume, setTotalVolume] = useState<number>(0.0);
   const [avarageSize, setAvarageSize] = useState<{
-    width_cm: number
-    height_cm: number
-    length_cm: number
+    width_cm: number;
+    height_cm: number;
+    length_cm: number;
   }>({
     width_cm: 0.0,
     height_cm: 0.0,
     length_cm: 0.0,
-  })
+  });
   // const handlePress = (
   //   event: GestureResponderEvent,
   //   setPoints: React.Dispatch<React.SetStateAction<{ x: number; y: number }[]>>,
@@ -54,84 +83,113 @@ export default function PredictionScreen() {
 
   const saveResults = async () => {
     try {
-      setPictureStatus("Saving results...")
-      setIsProcessing(true)
+      setPictureStatus("Saving results...");
+      setIsProcessing(true);
 
       const result = await dynamoCreateMutation.mutateAsync({
         ...{
           image_s3_uri: image_s3_uri as string,
           annotated_s3_uri: annotated_s3_uri as string,
-          predictions: parsedPredictions
+          predictions: parsedPredictions,
         },
         user: "test user",
-      })
+      });
 
-      setPictureStatus("Results saved successfully!")
+      setPictureStatus("Results saved successfully!");
 
-      setIsProcessing(false)
+      setIsProcessing(false);
       router.replace({
         pathname: "/prediction",
         params: {
-          item: Buffer.from(JSON.stringify({
-            prediction_id: result.prediction_id,
-            user: "test user",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            image_s3_uri: image_s3_uri,
-            annotated_s3_uri: annotated_s3_uri,
-            download_image_s3_uri: download_image_s3_uri,
-            download_annotated_s3_uri: download_annotated_s3_uri,
-          })).toString("base64"),
+          item: Buffer.from(
+            JSON.stringify({
+              prediction_id: result.prediction_id,
+              user: "test user",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              image_s3_uri: image_s3_uri,
+              annotated_s3_uri: annotated_s3_uri,
+              download_image_s3_uri: download_image_s3_uri,
+              download_annotated_s3_uri: download_annotated_s3_uri,
+            })
+          ).toString("base64"),
           predictions: predictions,
         },
-      })
+      });
     } catch (error) {
-      console.error(error)
-      setPictureStatus("Error saving results")
-      Alert.alert("Save Error", "There was an error saving your results. Please try again.", [{ text: "OK" }])
-      setIsProcessing(false)
+      console.error(error);
+      setPictureStatus("Error saving results");
+      Alert.alert(
+        "Save Error",
+        "There was an error saving your results. Please try again.",
+        [{ text: "OK" }]
+      );
+      setIsProcessing(false);
     }
-  }
+  };
 
   useEffect(() => {
-    setTotalVolume(totalVolumeCalculator(parsedPredictions))
-    setAvarageSize(avarageSizeCalculator(parsedPredictions))
-  }, [predictions])
+    setTotalVolume(totalVolumeCalculator(parsedPredictions));
+    setAvarageSize(avarageSizeCalculator(parsedPredictions));
+  }, [predictions]);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
           <ArrowLeft color="#fff" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Prediction Details</Text>
         <View></View>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         {/* <TouchableWithoutFeedback disabled={isProcessing} onPress={(e) => handlePress(e, setPoints, points)}> */}
-          <View style={styles.imageContainer}>
-            <Image source={{ uri: imageUrl }} style={styles.image} />
-            {/* {points.map((point, i) => (
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: imageUrl }} style={styles.image} />
+          {/* {points.map((point, i) => (
               <View key={i} style={[styles.pointMarker, { top: point.y, left: point.x }]}>
                 <Text style={styles.pointNumber}>{i + 1}</Text>
               </View>
             ))} */}
-            <View style={styles.pointInstructions}>
-              {/* {points.length < 4 && (
+          <View style={styles.pointInstructions}>
+            {/* {points.length < 4 && (
                 <Text style={styles.pointInstructionsText}>Tap to mark points ({points.length}/4)</Text>
               )} */}
-              <Text style={styles.pointInstructionsText}>total volume(m3): {(totalVolume/1000000).toFixed(3)}</Text>
-              <Text style={styles.pointInstructionsText}>weight (kg): {totalVolume * weight_mapping.pine / 1000 }</Text>
-              <Text style={styles.pointInstructionsText}>size (cm): {Object.values(avarageSize).map(item => item.toFixed(3)).join('X')}</Text>
-              <Text style={styles.pointInstructionsText}>wood count: {woodCount}</Text>
-            </View>
-            <View style={styles.imageOverlay}>
-              <Chip icon="image" style={styles.fileChip} textStyle={styles.chipText}>
-                {typeof image_s3_uri === "string" ? getFilenameFromS3Uri(image_s3_uri) : "Image"}
-              </Chip>
-            </View>
+            <Text style={styles.pointInstructionsText}>
+              total volume(m3): {(totalVolume / 1000000).toFixed(3)}
+            </Text>
+            <Text style={styles.pointInstructionsText}>
+              weight (kg): {(totalVolume * weight_mapping.pine) / 1000}
+            </Text>
+            <Text style={styles.pointInstructionsText}>
+              size (cm):{" "}
+              {Object.values(avarageSize)
+                .map((item) => item.toFixed(3))
+                .join("X")}
+            </Text>
+            <Text style={styles.pointInstructionsText}>
+              wood count: {woodCount}
+            </Text>
           </View>
+          <View style={styles.imageOverlay}>
+            <Chip
+              icon="image"
+              style={styles.fileChip}
+              textStyle={styles.chipText}
+            >
+              {typeof image_s3_uri === "string"
+                ? getFilenameFromS3Uri(image_s3_uri)
+                : "Image"}
+            </Chip>
+          </View>
+        </View>
         {/* </TouchableWithoutFeedback> */}
 
         <View style={styles.detailsContainer}>
@@ -145,7 +203,11 @@ export default function PredictionScreen() {
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>User:</Text>
-              <Chip icon="account" style={styles.userChip} textStyle={styles.userChipText}>
+              <Chip
+                icon="account"
+                style={styles.userChip}
+                textStyle={styles.userChipText}
+              >
                 {user}
               </Chip>
             </View>
@@ -153,14 +215,18 @@ export default function PredictionScreen() {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Created:</Text>
               <Text style={styles.infoValue}>
-                {typeof created_at === "string" ? formatDate(created_at) : "Unknown"}
+                {typeof created_at === "string"
+                  ? formatDate(created_at)
+                  : "Unknown"}
               </Text>
             </View>
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Updated:</Text>
               <Text style={styles.infoValue}>
-                {typeof updated_at === "string" ? formatDate(updated_at) : "Unknown"}
+                {typeof updated_at === "string"
+                  ? formatDate(updated_at)
+                  : "Unknown"}
               </Text>
             </View>
           </View>
@@ -171,21 +237,25 @@ export default function PredictionScreen() {
             <Text style={styles.sectionTitle}>Storage Information</Text>
 
             <Card style={styles.storageCard}>
-              <Card.Content>
-                <Text style={styles.storageLabel}>Image S3 URI:</Text>
-                <Text style={styles.storageValue} selectable>
-                  {image_s3_uri}
-                </Text>
-              </Card.Content>
+              <View style={styles.storageCardContent}>
+                <Card.Content>
+                  <Text style={styles.storageLabel}>Image S3 URI:</Text>
+                  <Text style={styles.storageValue} selectable>
+                    {image_s3_uri}
+                  </Text>
+                </Card.Content>
+              </View>
             </Card>
 
             <Card style={styles.storageCard}>
-              <Card.Content>
-                <Text style={styles.storageLabel}>Annotated S3 URI:</Text>
-                <Text style={styles.storageValue} selectable>
-                  {annotated_s3_uri}
-                </Text>
-              </Card.Content>
+              <View style={styles.storageCardContent}>
+                <Card.Content>
+                  <Text style={styles.storageLabel}>Annotated S3 URI:</Text>
+                  <Text style={styles.storageValue} selectable>
+                    {annotated_s3_uri}
+                  </Text>
+                </Card.Content>
+              </View>
             </Card>
           </View>
           <Divider style={styles.divider} />
@@ -204,31 +274,33 @@ export default function PredictionScreen() {
             <Icon name="delete" type="material" color="white" size={24} />
             <Text style={styles.actionBtnText}>Clear Points</Text>
           </TouchableOpacity> */}
-          {(prediction_id as string).split('_')[0] === 'temp' && (<>
-            <TouchableOpacity
-              style={[
-                styles.actionBtn,
-                styles.primaryButton,
-                isProcessing && styles.disabledButton,
-                // (points.length < 4) && styles.disabledButton,
-              ]}
-              disabled={
-                isProcessing 
-                // || points.length < 4
-              }
-              onPress={saveResults}
-            >
-              <Icon name="save" type="material" color="white" size={24} />
-              <Text style={styles.actionBtnText}>Save</Text>
-            </TouchableOpacity>
-          </>)}
+          {(prediction_id as string).split("_")[0] === "temp" && (
+            <>
+              <TouchableOpacity
+                style={[
+                  styles.actionBtn,
+                  styles.primaryButton,
+                  isProcessing && styles.disabledButton,
+                  // (points.length < 4) && styles.disabledButton,
+                ]}
+                disabled={
+                  isProcessing
+                  // || points.length < 4
+                }
+                onPress={saveResults}
+              >
+                <Icon name="save" type="material" color="white" size={24} />
+                <Text style={styles.actionBtnText}>Save</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
     </View>
-  )
+  );
 }
 
-const { width, height } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
   container: {
@@ -399,6 +471,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 8,
   },
+  storageCardContent: {
+    overflow: "hidden",
+    borderRadius: 8,
+  },
   storageLabel: {
     fontSize: 14,
     color: "#999",
@@ -425,4 +501,4 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     borderColor: "#6200ee",
   },
-})
+});

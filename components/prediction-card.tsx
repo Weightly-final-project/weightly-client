@@ -1,85 +1,106 @@
-import { View, Text, StyleSheet, Dimensions } from "react-native"
-import { Card, Chip, Button } from "react-native-paper"
-import { Link } from "expo-router"
-import { Buffer } from 'buffer'
-import { getFilenameFromS3Uri, formatDate } from "@/utils/functions"
+import { View, Text, StyleSheet, Dimensions } from "react-native";
+import { Card, Chip, Button } from "react-native-paper";
+import { Link } from "expo-router";
+import { Buffer } from "buffer";
+import { getFilenameFromS3Uri, formatDate } from "@/utils/functions";
 
 type PredictionItemProps = {
   item: {
-    prediction_id: string
-    user: string
-    annotated_s3_uri: string
-    created_at: string
-    image_s3_uri: string
-    updated_at: string
-    download_image_s3_uri: string
-    download_annotated_s3_uri: string
-    predictions: readonly any[]
-  }
-  onPress?: () => void
-}
+    prediction_id: string;
+    user: string;
+    annotated_s3_uri: string;
+    created_at: string;
+    image_s3_uri: string;
+    updated_at: string;
+    download_image_s3_uri: string;
+    download_annotated_s3_uri: string;
+    predictions: readonly any[];
+  };
+  onPress?: () => void;
+};
 
 const PredictionItem = ({ item, onPress }: PredictionItemProps) => {
   // For demo purposes, we'll use a placeholder image
   // In production, you would use a proper image loading mechanism for S3
-  const imageUrl = item.download_annotated_s3_uri
+  const imageUrl = item.download_annotated_s3_uri;
 
   return (
     <Card style={styles.card} mode="elevated">
-      <Card.Cover source={{ uri: imageUrl }} style={styles.cardImage} />
+      <View style={styles.cardContentWrapper}>
+        <Card.Cover source={{ uri: imageUrl }} style={styles.cardImage} />
 
-      <View style={styles.overlay}>
-        <Chip icon="image" style={styles.fileChip} textStyle={styles.chipText}>
-          {getFilenameFromS3Uri(item.annotated_s3_uri)}
-        </Chip>
-      </View>
-
-      <Card.Content style={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.idContainer}>
-            <Text style={styles.idLabel}>ID:</Text>
-            <Text style={styles.id}>{item.prediction_id}</Text>
-          </View>
-        </View>
-
-        <View style={styles.dateContainer}>
-        <Text style={styles.idLabel}>User:</Text>
-          <Chip icon="account" style={styles.userChip} textStyle={styles.chipText}>
-            {item.user}
+        <View style={styles.overlay}>
+          <Chip
+            icon="image"
+            style={styles.fileChip}
+            textStyle={styles.chipText}
+          >
+            {getFilenameFromS3Uri(item.annotated_s3_uri)}
           </Chip>
         </View>
 
-        <View style={styles.dateContainer}>
-          <Text style={styles.dateLabel}>Created:</Text>
-          <Text style={styles.date}>{formatDate(item.created_at)}</Text>
-        </View>
+        <Card.Content style={styles.content}>
+          <View style={styles.header}>
+            <View style={styles.idContainer}>
+              <Text style={styles.idLabel}>ID:</Text>
+              <Text style={styles.id}>{item.prediction_id}</Text>
+            </View>
+          </View>
 
-        <View style={styles.footer}>
-          <Link href={{
-            pathname: "/prediction",
-            params: {
-              item: Buffer.from(JSON.stringify(item)).toString("base64"),
-              predictions: JSON.stringify(item.predictions),
-            },
-          }} asChild>
-            <Button mode="contained" onPress={onPress} style={styles.viewButton} icon="eye">
-              View Details
-            </Button>
-          </Link>
-        </View>
-      </Card.Content>
+          <View style={styles.dateContainer}>
+            <Text style={styles.idLabel}>User:</Text>
+            <Chip
+              icon="account"
+              style={styles.userChip}
+              textStyle={styles.chipText}
+            >
+              {item.user}
+            </Chip>
+          </View>
+
+          <View style={styles.dateContainer}>
+            <Text style={styles.dateLabel}>Created:</Text>
+            <Text style={styles.date}>{formatDate(item.created_at)}</Text>
+          </View>
+
+          <View style={styles.footer}>
+            <Link
+              href={{
+                pathname: "/prediction",
+                params: {
+                  item: Buffer.from(JSON.stringify(item)).toString("base64"),
+                  predictions: JSON.stringify(item.predictions),
+                },
+              }}
+              asChild
+            >
+              <Button
+                mode="contained"
+                onPress={onPress}
+                style={styles.viewButton}
+                icon="eye"
+              >
+                View Details
+              </Button>
+            </Link>
+          </View>
+        </Card.Content>
+      </View>
     </Card>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   card: {
     marginVertical: 8,
     marginHorizontal: 16,
     borderRadius: 12,
-    overflow: "hidden",
     elevation: 4,
     backgroundColor: "#202020",
+  },
+  cardContentWrapper: {
+    overflow: "hidden",
+    borderRadius: 12,
   },
   cardImage: {
     height: 180,
@@ -155,7 +176,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     borderColor: "#6200ee",
   },
-})
+});
 
-export default PredictionItem
-
+export default PredictionItem;
