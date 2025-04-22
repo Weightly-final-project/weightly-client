@@ -1,155 +1,175 @@
-import { FlatList, Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+  Alert,
+} from "react-native";
 import { Link } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { hooks, ResponseType } from "@/utils/api";
 import { ActivityIndicator, Button } from "react-native-paper";
 import PredictionItem from "../components/prediction-card";
+import AppHeader from "../components/AppHeader";
 import { getFiles } from "@/utils/s3";
-const {
-  useDynmo_getMutation
-} = hooks;
+import { useAuth } from "../utils/AuthContext";
+const { useDynmo_getMutation } = hooks;
 
-export default function CameraScreen() {
+export default function PredictionListScreen() {
   const dynmo_getMutation = useDynmo_getMutation();
-  const [predictions, setPredictions] = useState<ResponseType<"dynmo_get"> | undefined>(undefined);
+  const { user } = useAuth();
+  const [predictions, setPredictions] = useState<
+    ResponseType<"dynmo_get"> | undefined
+  >(undefined);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    fetchResult();
-  }, []);
 
-  const fetchResult = () => {
+  // Use useCallback with empty dependency array to prevent recreation
+  const fetchResult = useCallback(() => {
     setLoading(true);
-    const user = "test user"; // Replace with actual user ID
-    dynmo_getMutation.mutate({ user }, {
-      onSuccess: (pre) => {
-        getFiles(pre.map((item) => item.image_s3_uri), 'weighlty')
-          .then((results) => {
-            const updatedPredictions = pre.map((item, index) => ({
-              ...item,
-              download_image_s3_uri: results[index]?.url,
-            })).filter((item) => item.download_image_s3_uri);
-            setPredictions(updatedPredictions);
-          })
-          .catch((error) => {
-            console.error("Error fetching images:", error);
-          });
-  
-        getFiles(pre.map((item) => item.annotated_s3_uri), 'weighlty')
-          .then((results) => {
-            const updatedPredictions = pre.map((item, index) => ({
-              ...item,
-              download_annotated_s3_uri: results[index]?.url,
-            })).filter((item) => item.download_annotated_s3_uri);
-            setPredictions(updatedPredictions);
-          })
-          .catch((error) => {
-            console.error("Error fetching images:", error);
-          });
-        setLoading(false);
+
+    // Always use "test user" for demo/development purposes
+    const userId = "test user";
+
+    console.log("Fetching predictions for user:", userId);
+
+    dynmo_getMutation.mutate(
+      { user: userId },
+      {
+        onSuccess: (pre) => {
+          console.log(`Fetched ${pre.length} raw predictions`);
+
+          if (pre.length === 0) {
+            setPredictions([]);
+            setLoading(false);
+            return;
+          }
+
+          // Create a copy of the initial predictions
+          let updatedPredictions = [...pre];
+          let imageUrlsProcessed = false;
+          let annotatedUrlsProcessed = false;
+
+          // Function to update state once both async operations complete
+          const updateStateIfComplete = () => {
+            if (imageUrlsProcessed && annotatedUrlsProcessed) {
+              console.log("All prediction URLs processed, updating state");
+              setPredictions(updatedPredictions);
+              setLoading(false);
+            }
+          };
+
+          // Get image URLs
+          getFiles(
+            pre.map((item) => item.image_s3_uri),
+            "weighlty"
+          )
+            .then((results) => {
+              console.log(`Processed ${results.length} image URLs`);
+
+              // Update the predictions with image URLs
+              updatedPredictions = updatedPredictions.map((item, index) => ({
+                ...item,
+                download_image_s3_uri: results[index]?.url,
+              }));
+
+              imageUrlsProcessed = true;
+              updateStateIfComplete();
+            })
+            .catch((error) => {
+              console.error("Error fetching images:", error);
+              imageUrlsProcessed = true;
+              updateStateIfComplete();
+            });
+
+          // Get annotated image URLs
+          getFiles(
+            pre.map((item) => item.annotated_s3_uri),
+            "weighlty"
+          )
+            .then((results) => {
+              console.log(`Processed ${results.length} annotated image URLs`);
+
+              // Update the predictions with annotated image URLs
+              updatedPredictions = updatedPredictions.map((item, index) => ({
+                ...item,
+                download_annotated_s3_uri: results[index]?.url,
+              }));
+
+              annotatedUrlsProcessed = true;
+              updateStateIfComplete();
+            })
+            .catch((error) => {
+              console.error("Error fetching annotated images:", error);
+              annotatedUrlsProcessed = true;
+              updateStateIfComplete();
+            });
         },
         onError: (error) => {
           console.error("Error fetching predictions:", error);
-        }
-    });
-    // const pre: ResponseType<"dynmo_get"> = [
-    //   {
-    //     "prediction_id": String("123abc"),
-    //     "user": String("user_001"),
-    //     "annotated_s3_uri": String("s3://weighlty/annotated_original_images/test-user_1742852904629_image1.jpg"),
-    //     "created_at": String("2025-03-27T10:15:30Z"),
-    //     "image_s3_uri": String("s3://weighlty/original_images/test-user_1742852904629_image1.jpg"),
-    //     "updated_at": String("2025-03-27T11:00:00Z"),
-    //     "predictions": [] as readonly any[],
-    //   } as const,
-    //   {
-    //     "prediction_id": String("456def"),
-    //     "user": String("user_002"),
-    //     "annotated_s3_uri": String("s3://weighlty/annotated_original_images/test-user_1742852904629_image1.jpg"),
-    //     "created_at": String("2025-03-26T15:45:10Z"),
-    //     "image_s3_uri": String("s3://weighlty/original_images/test-user_1742852904629_image1.jpg"),
-    //     "updated_at": String("2025-03-26T16:30:45Z"),
-    //     "predictions": [] as readonly any[],
-    //   } as const,
-    //   {
-    //     "prediction_id": String("789ghi"),
-    //     "user": String("user_003"),
-    //     "annotated_s3_uri": String("s3://weighlty/annotated_original_images/test-user_1742852904629_image1.jpg"),
-    //     "created_at": String("2025-03-25T08:25:50Z"),
-    //     "image_s3_uri": String("s3://weighlty/original_images/test-user_1742852904629_image1.jpg"),
-    //     "updated_at": String("2025-03-25T09:10:20Z"),
-    //     "predictions": [] as readonly any[],
-    //   } as const,
-    // ]
-    // getFiles(pre.map((item) => item.image_s3_uri), 'weighlty')
-    //   .then((results) => {
-    //     const updatedPredictions = pre.map((item, index) => ({
-    //       ...item,
-    //       download_image_s3_uri: results[index].url,
-    //     }));
-    //     setPredictions(updatedPredictions);
-    //   })
-    //   .catch((error) => {
-    //     console.error("Error fetching images:", error);
-    //   });
+          Alert.alert("Error", "Failed to load predictions. Please try again.");
+          setLoading(false);
+        },
+      }
+    );
+  }, []); // Empty dependency array
 
-    // getFiles(pre.map((item) => item.annotated_s3_uri), 'weighlty')
-    //   .then((results) => {
-    //     const updatedPredictions = pre.map((item, index) => ({
-    //       ...item,
-    //       download_annotated_s3_uri: results[index].url,
-    //     }));
-    //     setPredictions(updatedPredictions);
-    //   })
-    //   .catch((error) => {
-    //     console.error("Error fetching images:", error);
-    //   });
-    // setLoading(false);
-  }
+  // Only run on mount, not when fetchResult changes
+  useEffect(() => {
+    console.log("Predictions screen mounted, fetching data");
+    fetchResult();
+  }, []); // Empty dependency array
+
+  const handleRefresh = () => {
+    console.log("Manual refresh triggered");
+    fetchResult();
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Predictions</Text>
-        <Link href="/camera" asChild>
-          <Button mode="contained" icon="camera" style={styles.cameraButton}>
-            Camera
-          </Button>
-        </Link>
-      </View>
+      <AppHeader title="Predictions" />
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6200ee" />
-          <Text style={styles.loadingText}>Loading predictions...</Text>
-        </View>
-      ) : predictions && predictions.length > 0 ? (
-        <FlatList
-          data={predictions}
-          keyExtractor={(item) => item.prediction_id}
-          renderItem={({ item }) => {
-            return <PredictionItem item={item} />
-          }}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={loading}
-              onRefresh={fetchResult}
-            />
-          }
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No predictions found</Text>
+      <View style={styles.contentContainer}>
+        <View style={styles.actionContainer}>
           <Link href="/camera" asChild>
-            <Button mode="contained" icon="plus" style={styles.addButton}>
-              Create New Prediction
+            <Button mode="contained" icon="camera" style={styles.cameraButton}>
+              Camera
             </Button>
           </Link>
         </View>
-      )}
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#6200ee" />
+            <Text style={styles.loadingText}>Loading predictions...</Text>
+          </View>
+        ) : predictions && predictions.length > 0 ? (
+          <FlatList
+            data={predictions}
+            keyExtractor={(item) => item.prediction_id}
+            renderItem={({ item }) => {
+              return <PredictionItem item={item} />;
+            }}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
+            }
+          />
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No predictions found</Text>
+            <Link href="/camera" asChild>
+              <Button mode="contained" icon="plus" style={styles.addButton}>
+                Create New Prediction
+              </Button>
+            </Link>
+          </View>
+        )}
+      </View>
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -157,25 +177,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#121212",
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    marginTop: Platform.OS === 'ios' ? 40: 0,
-    backgroundColor: "#202020",
-    elevation: 2,
+  contentContainer: {
+    flex: 1,
+    paddingTop: 16,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
+  actionContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
   cameraButton: {
     backgroundColor: "#6200ee",
   },
   listContent: {
+    paddingHorizontal: 16,
     paddingVertical: 8,
   },
   loadingContainer: {
@@ -202,4 +218,4 @@ const styles = StyleSheet.create({
   addButton: {
     backgroundColor: "#6200ee",
   },
-})
+});
