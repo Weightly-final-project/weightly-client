@@ -28,6 +28,8 @@ import { bigBboxCalculator } from "@/utils/functions";
 import CameraHeader from "../components/CameraHeader";
 import CameraControls from "../components/CameraControls";
 import ImagePreview from "../components/ImagePreview";
+import AppHeader from "../components/AppHeader";
+import { useAuth } from "@/utils/AuthContext";
 
 // Use your API hooks
 const {
@@ -46,6 +48,9 @@ type anototatedImageType = typeof responseExample;
 
 export default function CameraScreen() {
   const router = useRouter();
+  const { user } = useAuth(); // Get authenticated user
+  const userId = user?.username || "guest"; // Use username or fallback to "guest"
+
   const [pictureStatus, setPictureStatus] =
     useState<string>("Ready to capture");
   const [PictureData1, setPictureData1] = useState<
@@ -81,10 +86,13 @@ export default function CameraScreen() {
 
   if (!permission || !permission.granted) {
     return (
-      <Permission
-        permissionType={"camera"}
-        requestPermissions={requestPermissions}
-      />
+      <View style={styles.container}>
+        <AppHeader title="Camera" showBack={true} />
+        <Permission
+          permissionType={"camera"}
+          requestPermissions={requestPermissions}
+        />
+      </View>
     );
   }
 
@@ -98,7 +106,7 @@ export default function CameraScreen() {
         item: Buffer.from(
           JSON.stringify({
             prediction_id: `temp_prediction_${Date.now()}`,
-            user: "test user",
+            user: userId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             image_s3_uri: anototatedImage1.image_s3_uri,
@@ -119,17 +127,17 @@ export default function CameraScreen() {
 
       const res1 = await uploadFile(
         uri,
-        `original_images/test-user_${Date.now()}_image1.jpg`
+        `original_images/${userId}_${Date.now()}_image1.jpg`
       );
 
       const formData1 = {
-        user: "test user",
+        user: userId,
         image_s3_uri: `s3://weighlty/${res1.Key}`,
         model_s3_uri: "s3://weighlty/pine.pt",
       } as const;
 
       const formData2 = {
-        user: "test user",
+        user: userId,
         image_s3_uri: `s3://weighlty/${res1.Key}`,
         model_s3_uri: "s3://rbuixcube/large_files/best.pt",
       } as const;
@@ -182,7 +190,7 @@ export default function CameraScreen() {
         setPictureStatus("Generating annotated image...");
 
         const pred1 = await outputImageMutation.mutateAsync({
-          user: "test user",
+          user: userId,
           image_s3_uri: `s3://weighlty/${res1.Key}`,
           predictions: [
             ...predictions_with_size,
@@ -238,11 +246,24 @@ export default function CameraScreen() {
 
   if (PictureData1) {
     return (
-      <ImagePreview
-        imageUri={PictureData1.uri}
-        isProcessing={isProcessing}
-        onRetake={() => setPictureData1(undefined)}
-      />
+      <View style={styles.previewContainer}>
+        <ImagePreview
+          imageUri={PictureData1.uri}
+          isProcessing={isProcessing}
+          onRetake={() => {
+            setPictureData1(undefined);
+            setIsProcessing(false);
+            setPictureStatus("Ready to capture");
+          }}
+        />
+
+        {isProcessing && (
+          <View style={styles.processingContainer}>
+            <ActivityIndicator size="large" color="#FFF" />
+            <Text style={styles.processingText}>{pictureStatus}</Text>
+          </View>
+        )}
+      </View>
     );
   }
 
@@ -275,30 +296,28 @@ export default function CameraScreen() {
   };
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <CameraHeader onBackPress={() => router.back()} />
+      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <AppHeader title="Camera" showBack={true} />
 
-      <CameraView style={styles.camera} ref={cameraRef} ratio="16:9">
-        <View style={styles.cameraOverlay}>
-          <View style={styles.cameraInstructions}>
-            <View style={styles.instructionBubble}>
-              <Text style={styles.instructionText}>
-                Take a picture with pine wood and rubiks cube
+      <View style={styles.cameraContainer}>
+        <CameraView ref={cameraRef} style={styles.camera} ratio="16:9">
+          <View style={styles.controlsContainer}>
+            <View style={styles.instructionsContainer}>
+              <Text style={styles.instructionsText}>
+                Place the object on a flat surface with a small Rubik's cube
+                next to it for scale reference.
               </Text>
             </View>
-          </View>
 
-          <View style={styles.cameraGuide}>
-            <View style={styles.cameraFrame} />
+            <TouchableOpacity
+              style={styles.captureButton}
+              onPress={takePicture}
+            >
+              <Icon name="camera" type="font-awesome" color="#FFF" size={24} />
+            </TouchableOpacity>
           </View>
-
-          <CameraControls
-            onCapture={takePicture}
-            onPickImage={() => {}}
-            isProcessing={isProcessing}
-          />
-        </View>
-      </CameraView>
+        </CameraView>
+      </View>
     </View>
   );
 }
@@ -307,7 +326,7 @@ const { width, height } = Dimensions.get("window");
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: "#000",
   },
   header: {
     flexDirection: "row",
@@ -427,12 +446,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   captureButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "rgba(98, 0, 238, 0.8)",
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 30,
   },
   captureButtonInner: {
     width: 70,
@@ -551,5 +571,46 @@ const styles = StyleSheet.create({
   pointInstructionsText: {
     color: "white",
     fontSize: 14,
+  },
+  previewContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  processingContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  processingText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 16,
+  },
+  cameraContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  controlsContainer: {
+    flex: 1,
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  instructionsContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  instructionsText: {
+    color: "white",
+    fontSize: 16,
+    textAlign: "center",
   },
 });

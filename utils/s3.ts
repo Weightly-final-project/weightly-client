@@ -1,5 +1,10 @@
 import AWS from 'aws-sdk';
 
+// Log that we're configuring AWS (for debugging)
+console.log('Configuring AWS with keys from .env file');
+console.log('Access Key ID:', process.env.EXPO_PUBLIC_AWS_ACCESS_KEY_ID ? 'Found' : 'Missing');
+console.log('Secret Access Key:', process.env.EXPO_PUBLIC_AWS_SECRET_ACCESS_KEY ? 'Found' : 'Missing'); 
+
 AWS.config.update({
     region: 'eu-west-1',
     accessKeyId: process.env.EXPO_PUBLIC_AWS_ACCESS_KEY_ID || '',
