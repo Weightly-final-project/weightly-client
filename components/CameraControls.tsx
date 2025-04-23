@@ -2,6 +2,7 @@ import React from "react";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
 import { Icon } from "react-native-elements";
 import ImagePickerExample from "./pickImage";
+import { CameraCapturedPicture } from "expo-camera";
 
 const CameraControls = ({
   onCapture,
@@ -9,14 +10,13 @@ const CameraControls = ({
   isProcessing,
 }: {
   onCapture: () => void;
-  onPickImage: () => void;
+  onPickImage: (photo: CameraCapturedPicture | undefined) => void;
   isProcessing: boolean;
 }) => {
   return (
     <View style={styles.cameraControls}>
       <TouchableOpacity
         style={styles.galleryButton}
-        onPress={onPickImage}
         disabled={isProcessing}
       >
         <ImagePickerExample processImage={onPickImage} />
@@ -27,7 +27,7 @@ const CameraControls = ({
         onPress={onCapture}
         disabled={isProcessing}
       >
-        <View style={styles.captureButtonInner} />
+        <Icon name="camera" type="font-awesome" color="#FFF" size={24} />
       </TouchableOpacity>
 
       <View style={styles.placeholderButton} />
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 30,
     paddingHorizontal: 30,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    width: "100%",
   },
   galleryButton: {
     width: 50,

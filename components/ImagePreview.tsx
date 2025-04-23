@@ -31,14 +31,9 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
       </View>
 
       <View style={styles.imageContainer}>
-        {isProcessing ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6200ee" />
-            <Text style={styles.loadingText}>Processing...</Text>
-          </View>
-        ) : (
+        {!isProcessing &&
           <Image source={{ uri: imageUri }} style={styles.previewImage} />
-        )}
+        }
       </View>
 
       <View style={styles.actionBar}>
@@ -59,6 +54,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#121212",
+    width: "100%",
   },
   header: {
     flexDirection: "row",

@@ -57,6 +57,7 @@ export default function PredictionScreen() {
         : [],
     [predictions]
   );
+  console.log(parsedPredictions);
   const woodCount = useMemo(() => {
     return parsedPredictions.length;
   }, [parsedPredictions]);

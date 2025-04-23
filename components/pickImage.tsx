@@ -11,7 +11,6 @@ export default function ImagePickerExample(props: {
     let result = await launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: [4, 3],
       quality: 1,
       exif: true,
     });

@@ -309,12 +309,11 @@ export default function CameraScreen() {
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.captureButton}
-              onPress={takePicture}
-            >
-              <Icon name="camera" type="font-awesome" color="#FFF" size={24} />
-            </TouchableOpacity>
+            <CameraControls
+              onCapture={takePicture}
+              onPickImage={processImage}
+              isProcessing={isProcessing}
+            />
           </View>
         </CameraView>
       </View>
@@ -429,31 +428,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: 12,
   },
-  cameraControls: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 30,
-    paddingHorizontal: 30,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  galleryButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "rgba(98, 0, 238, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 30,
-  },
   captureButtonInner: {
     width: 70,
     height: 70,
@@ -461,10 +435,6 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderWidth: 2,
     borderColor: "#121212",
-  },
-  placeholderButton: {
-    width: 50,
-    height: 50,
   },
   imageContainer: {
     flex: 1,
