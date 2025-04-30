@@ -1,8 +1,12 @@
-import { View, Text, StyleSheet, Dimensions } from "react-native";
+import { View, Text, StyleSheet, Dimensions, Alert } from "react-native";
 import { Card, Chip, Button } from "react-native-paper";
 import { Link } from "expo-router";
 import { Buffer } from "buffer";
 import { getFilenameFromS3Uri, formatDate } from "@/utils/functions";
+import { hooks } from "@/utils/api";
+import { useAuth } from "@/utils/AuthContext";
+
+const { useDynmo_deleteMutation } = hooks;
 
 type PredictionItemProps = {
   item: {
@@ -17,12 +21,48 @@ type PredictionItemProps = {
     predictions: readonly any[];
   };
   onPress?: () => void;
+  onDelete?: () => void;
 };
 
-const PredictionItem = ({ item, onPress }: PredictionItemProps) => {
-  // For demo purposes, we'll use a placeholder image
-  // In production, you would use a proper image loading mechanism for S3
+const PredictionItem = ({ item, onPress, onDelete }: PredictionItemProps) => {
+  const { user } = useAuth();
+  const userId = user?.username || "guest";
+  const deleteMutation = useDynmo_deleteMutation();
   const imageUrl = item.download_annotated_s3_uri;
+
+  const handleDelete = async () => {
+    Alert.alert(
+      "Delete Prediction",
+      "Are you sure you want to delete this prediction?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteMutation.mutateAsync({
+                user: userId,
+                prediction_id: item.prediction_id,
+              });
+              if (onDelete) {
+                onDelete();
+              }
+            } catch (error) {
+              console.error("Error deleting prediction:", error);
+              Alert.alert(
+                "Error",
+                "Failed to delete prediction. Please try again."
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <Card style={styles.card} mode="elevated">
@@ -83,6 +123,14 @@ const PredictionItem = ({ item, onPress }: PredictionItemProps) => {
                 View Details
               </Button>
             </Link>
+            <Button
+              mode="contained"
+              onPress={handleDelete}
+              style={styles.deleteButton}
+              icon="delete"
+            >
+              Delete
+            </Button>
           </View>
         </Card.Content>
       </View>
@@ -165,16 +213,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 8,
+    gap: 8,
   },
   viewButton: {
     flex: 1,
-    marginRight: 8,
     backgroundColor: "#6200ee",
   },
-  editButton: {
+  deleteButton: {
     flex: 1,
-    marginLeft: 8,
-    borderColor: "#6200ee",
+    backgroundColor: "#dc3545",
   },
 });
 

@@ -1,28 +1,18 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
-import Auth from "@aws-amplify/auth";
-import { Hub } from "aws-amplify";
+import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Configure Amplify with real Cognito credentials from .env
-console.log("============ AUTH CONFIGURATION ============");
-console.log("User Pool ID:", process.env.EXPO_PUBLIC_COGNITO_USER_POOL_ID);
-console.log("Client ID:", process.env.EXPO_PUBLIC_COGNITO_CLIENT_ID);
-
-// Format AWS configuration object properly for Amplify v5
-const awsConfig = {
-  Auth: {
-    region: "eu-west-1",
-    userPoolId: process.env.EXPO_PUBLIC_COGNITO_USER_POOL_ID,
-    userPoolWebClientId: process.env.EXPO_PUBLIC_COGNITO_CLIENT_ID,
-    mandatorySignIn: true,
-  },
+// Configure Cognito
+const poolData = {
+  UserPoolId: process.env.EXPO_PUBLIC_COGNITO_USER_POOL_ID || '',
+  ClientId: process.env.EXPO_PUBLIC_COGNITO_CLIENT_ID || '',
 };
 
-console.log("Using AWS config:", JSON.stringify(awsConfig, null, 2));
+console.log("============ AUTH CONFIGURATION ============");
+console.log("User Pool ID:", poolData.UserPoolId);
+console.log("Client ID:", poolData.ClientId);
 
-Auth.configure(awsConfig);
-
-// We're now using real authentication
+const userPool = new CognitoUserPool(poolData);
 
 type AuthContextType = {
   isLoading: boolean;
@@ -37,30 +27,43 @@ type AuthContextType = {
     familyName: string
   ) => Promise<any>;
   confirmSignUp: (username: string, code: string) => Promise<any>;
-  resendConfirmationCode: (username: string) => Promise<any>;
+  verifyCode: (username: string, code: string) => Promise<void>;
+  resendConfirmationCode: (username: string) => Promise<void>;
   signOut: () => Promise<void>;
   forgotPassword: (username: string) => Promise<any>;
   forgotPasswordSubmit: (
     username: string,
     code: string,
     newPassword: string
-  ) => Promise<any>;
-  devBypassLogin: (username: string) => Promise<any>;
+  ) => Promise<void>;
+  devBypassLogin: (username: string) => Promise<{ isSignedIn: boolean }>;
 };
 
-const AuthContext = createContext<AuthContextType>({
-  isLoading: true,
+const defaultContext: AuthContextType = {
+  isLoading: false,
   isAuthenticated: false,
   user: null,
-  signIn: async () => {},
-  signUp: async () => {},
-  confirmSignUp: async () => {},
-  resendConfirmationCode: async () => {},
-  signOut: async () => {},
-  forgotPassword: async () => {},
-  forgotPasswordSubmit: async () => {},
-  devBypassLogin: async () => {},
-});
+  signIn: () => throwError(),
+  signUp: () => throwError(),
+  confirmSignUp: () => throwError(),
+  verifyCode: () => throwError(),
+  resendConfirmationCode: () => throwError(),
+  signOut: () => throwError(),
+  forgotPassword: () => throwError(),
+  forgotPasswordSubmit: () => throwError(),
+  devBypassLogin: () => throwError(),
+};
+
+const AuthContext = createContext<AuthContextType>(defaultContext);
+
+const throwError = () => {
+  throw new Error('Cannot use auth context outside of AuthProvider');
+};
+
+// Add debug logging for auth operations
+const debugLog = (message: string, ...args: any[]) => {
+  console.log(`[Auth Debug] ${message}`, ...args);
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -70,40 +73,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    // Check if user is already authenticated
     checkAuthState();
-
-    // Listen for auth events - updated to match Amplify v5 event names
-    const unsubscribe = Hub.listen("auth", ({ payload }) => {
-      console.log(`Auth event: ${payload.event}`);
-
-      switch (payload.event) {
-        case "signIn":
-          checkAuthState();
-          break;
-        case "signOut":
-          setUser(null);
-          setIsAuthenticated(false);
-          break;
-        case "signIn_failure":
-          console.log("Sign in failure", payload);
-          break;
-      }
-    });
-
-    return () => unsubscribe();
   }, []);
 
   const checkAuthState = async () => {
     setIsLoading(true);
     try {
-      console.log("Checking auth state...");
-      const user = await Auth.currentAuthenticatedUser();
-      console.log("User is authenticated:", user.username);
-      setIsAuthenticated(true);
-      setUser(user);
+      const cognitoUser = userPool.getCurrentUser();
+      if (cognitoUser) {
+        cognitoUser.getSession((err: any, session: any) => {
+          if (err) {
+            debugLog('Session error:', err);
+            setIsAuthenticated(false);
+            setUser(null);
+          } else if (session.isValid()) {
+            debugLog('Valid session found');
+            cognitoUser.getUserAttributes((err: any, attributes: any) => {
+              if (err) {
+                debugLog('Error getting user attributes:', err);
+                setIsAuthenticated(false);
+                setUser(null);
+              } else {
+                const userData = {
+                  username: cognitoUser.getUsername(),
+                  attributes: attributes.reduce((acc: any, attr: any) => {
+                    acc[attr.Name] = attr.Value;
+                    return acc;
+                  }, {})
+                };
+                debugLog('User authenticated:', userData);
+                setIsAuthenticated(true);
+                setUser(userData);
+              }
+            });
+          } else {
+            debugLog('Session invalid');
+            setIsAuthenticated(false);
+            setUser(null);
+          }
+        });
+      } else {
+        debugLog('No current user');
+        setIsAuthenticated(false);
+        setUser(null);
+      }
     } catch (error) {
-      console.log("User is not authenticated");
+      debugLog('Error checking auth state:', error);
       setIsAuthenticated(false);
       setUser(null);
     } finally {
@@ -111,141 +126,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const signIn = async (username: string, password: string) => {
+  const handleSignIn = async (username: string, password: string): Promise<any> => {
     setIsLoading(true);
-    try {
-      console.log("Attempting sign in...");
-      const result = await Auth.signIn(username, password);
-      console.log("Sign in successful", result);
-
-      // Update auth state immediately after successful login
-      setIsAuthenticated(true);
-      setUser(result);
-
-      return result;
-    } catch (error) {
-      console.log("Error signing in:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const signUp = async (
-    username: string,
-    password: string,
-    email: string,
-    phoneNumber: string,
-    familyName: string
-  ): Promise<any> => {
-    try {
-      console.log("AUTH: Starting signup process for:", username);
-      console.log("AUTH: Using email:", email);
-      console.log("AUTH: Using phone:", phoneNumber);
-
-      const result = await Auth.signUp({
-        username,
-        password,
-        attributes: {
-          email,
-          phone_number: phoneNumber,
-          family_name: familyName,
-          name: username,
-        },
+    return new Promise((resolve, reject) => {
+      const authenticationDetails = new AuthenticationDetails({
+        Username: username,
+        Password: password,
       });
 
-      console.log("AUTH: Signup successful:", JSON.stringify(result, null, 2));
-      return result;
-    } catch (error) {
-      console.error("AUTH: Error signing up:", error);
-      throw error;
-    }
+      const cognitoUser = new CognitoUser({
+        Username: username,
+        Pool: userPool,
+      });
+
+      cognitoUser.authenticateUser(authenticationDetails, {
+        onSuccess: (session) => {
+          debugLog('Sign in successful:', session);
+          cognitoUser.getUserAttributes((err: any, attributes: any) => {
+            if (err) {
+              debugLog('Error getting user attributes:', err);
+              reject(err);
+            } else {
+              const userData = {
+                username: cognitoUser.getUsername(),
+                attributes: attributes.reduce((acc: any, attr: any) => {
+                  acc[attr.Name] = attr.Value;
+                  return acc;
+                }, {})
+              };
+              setIsAuthenticated(true);
+              setUser(userData);
+              resolve(userData);
+            }
+          });
+        },
+        onFailure: (err) => {
+          debugLog('Sign in failed:', err);
+          reject(err);
+        },
+        newPasswordRequired: (userAttributes, requiredAttributes) => {
+          debugLog('New password required');
+          reject(new Error('New password required'));
+        },
+        mfaRequired: (challengeName, challengeParameters) => {
+          debugLog('MFA required');
+          reject(new Error('MFA required'));
+        },
+        totpRequired: (challengeName, challengeParameters) => {
+          debugLog('TOTP required');
+          reject(new Error('TOTP required'));
+        },
+        selectMFAType: (challengeName, challengeParameters) => {
+          debugLog('Select MFA type');
+          reject(new Error('Select MFA type'));
+        },
+      });
+    }).finally(() => {
+      setIsLoading(false);
+    });
   };
 
-  const confirmSignUp = async (
-    username: string,
-    code: string
-  ): Promise<any> => {
-    try {
-      console.log("AUTH: Confirming signup for:", username);
-      console.log("AUTH: Using code:", code);
-
-      const result = await Auth.confirmSignUp(username, code);
-      console.log(
-        "AUTH: Confirmation successful:",
-        JSON.stringify(result, null, 2)
-      );
-      return result;
-    } catch (error) {
-      console.error("AUTH: Error confirming sign up:", error);
-      throw error;
+  const handleSignOut = async (): Promise<void> => {
+    const cognitoUser = userPool.getCurrentUser();
+    if (cognitoUser) {
+      cognitoUser.signOut();
     }
-  };
-
-  const resendConfirmationCode = async (username: string): Promise<any> => {
-    try {
-      console.log("AUTH: Resending confirmation code for:", username);
-
-      const result = await Auth.resendSignUp(username);
-      console.log(
-        "AUTH: Code resent successfully:",
-        JSON.stringify(result, null, 2)
-      );
-      return result;
-    } catch (error) {
-      console.error("AUTH: Error resending code:", error);
-      throw error;
-    }
-  };
-
-  const signOut = async (): Promise<void> => {
-    try {
-      console.log("AUTH: Starting sign out process");
-
-      // Sign out from AWS Amplify
-      await Auth.signOut();
-
-      // Explicitly reset the authentication state
-      setUser(null);
-      setIsAuthenticated(false);
-
-      console.log("AUTH: Sign out complete, auth state reset");
-    } catch (error) {
-      console.error("Error signing out:", error);
-      throw error;
-    }
-  };
-
-  const forgotPassword = async (username: string): Promise<any> => {
-    try {
-      return await Auth.forgotPassword(username);
-    } catch (error) {
-      console.error("Error resetting password:", error);
-      throw error;
-    }
-  };
-
-  const forgotPasswordSubmit = async (
-    username: string,
-    code: string,
-    newPassword: string
-  ): Promise<any> => {
-    try {
-      return await Auth.forgotPasswordSubmit(username, code, newPassword);
-    } catch (error) {
-      console.error("Error submitting new password:", error);
-      throw error;
-    }
-  };
-
-  const devBypassLogin = async (username: string): Promise<any> => {
-    console.log("DEVELOPMENT ONLY: Bypassing normal login for:", username);
-
-    // Set user state manually for development
-    setUser({ username });
-    setIsAuthenticated(true);
-
-    return { isSignedIn: true };
+    setIsAuthenticated(false);
+    setUser(null);
   };
 
   return (
@@ -254,14 +201,106 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isLoading,
         isAuthenticated,
         user,
-        signIn,
-        signUp,
-        confirmSignUp,
-        resendConfirmationCode,
-        signOut,
-        forgotPassword,
-        forgotPasswordSubmit,
-        devBypassLogin,
+        signIn: handleSignIn,
+        signUp: async (username, password, email, phoneNumber, familyName) => {
+          return new Promise((resolve, reject) => {
+            const attributeList = [
+              new CognitoUserAttribute({ Name: 'email', Value: email }),
+              new CognitoUserAttribute({ Name: 'phone_number', Value: phoneNumber }),
+              new CognitoUserAttribute({ Name: 'family_name', Value: familyName }),
+              new CognitoUserAttribute({ Name: 'name', Value: username }),
+            ];
+            const validationData: CognitoUserAttribute[] = [];
+            userPool.signUp(
+              username,
+              password,
+              attributeList,
+              validationData,
+              (err, result) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve(result);
+                }
+              }
+            );
+          });
+        },
+        confirmSignUp: async (username, code) => {
+          return new Promise((resolve, reject) => {
+            const cognitoUser = new CognitoUser({
+              Username: username,
+              Pool: userPool,
+            });
+            cognitoUser.confirmRegistration(code, true, (err, result) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(result);
+              }
+            });
+          });
+        },
+        verifyCode: async (username, code) => {
+          return new Promise((resolve, reject) => {
+            const cognitoUser = new CognitoUser({
+              Username: username,
+              Pool: userPool,
+            });
+            cognitoUser.confirmRegistration(code, true, (err, result) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(result);
+              }
+            });
+          });
+        },
+        resendConfirmationCode: async (username) => {
+          return new Promise((resolve, reject) => {
+            const cognitoUser = new CognitoUser({
+              Username: username,
+              Pool: userPool,
+            });
+            cognitoUser.resendConfirmationCode((err, result) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(result);
+              }
+            });
+          });
+        },
+        signOut: handleSignOut,
+        forgotPassword: async (username) => {
+          return new Promise((resolve, reject) => {
+            const cognitoUser = new CognitoUser({
+              Username: username,
+              Pool: userPool,
+            });
+            cognitoUser.forgotPassword({
+              onSuccess: (result) => resolve(result),
+              onFailure: (err) => reject(err),
+            });
+          });
+        },
+        forgotPasswordSubmit: async (username, code, newPassword) => {
+          return new Promise((resolve, reject) => {
+            const cognitoUser = new CognitoUser({
+              Username: username,
+              Pool: userPool,
+            });
+            cognitoUser.confirmPassword(code, newPassword, {
+              onSuccess: () => resolve(),
+              onFailure: (err) => reject(err),
+            });
+          });
+        },
+        devBypassLogin: async (username) => {
+          setUser({ username });
+          setIsAuthenticated(true);
+          return { isSignedIn: true };
+        }
       }}
     >
       {children}
@@ -270,3 +309,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 };
 
 export const useAuth = () => useContext(AuthContext);
+
