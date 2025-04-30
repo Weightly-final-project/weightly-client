@@ -151,7 +151,17 @@ export default function PredictionListScreen() {
               data={predictions}
               keyExtractor={(item) => item.prediction_id}
               renderItem={({ item }) => {
-                return <PredictionItem item={item} />;
+                return (
+                  <PredictionItem
+                    item={item}
+                    onDelete={() => {
+                      // Remove the deleted prediction from the state
+                      setPredictions((prev) =>
+                        prev?.filter((p) => p.prediction_id !== item.prediction_id)
+                      );
+                    }}
+                  />
+                );
               }}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}

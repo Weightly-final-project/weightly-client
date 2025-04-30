@@ -65,6 +65,17 @@ const API = {
       prediction_id: String(), 
     }
   },
+  dynmo_delete: {
+    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predictions/delete",
+    method: "DELETE",
+    requestExample: {
+      user: String(),
+      prediction_id: String(),
+    },
+    responseExample: {
+      message: String(),
+    }
+  },
   dynmo_get: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predictions",
     method: "GET",
@@ -94,21 +105,31 @@ const fetchApi = async <T extends EndpointKeys>(
   data: RequestType<T>
 ): Promise<ResponseType<T>> => {
   const controller = new AbortController()
-// 5 second timeout:
-const timeoutId = setTimeout(() => controller.abort(), 5000* 60); // 5 minutes
-  const response = API[endpoint].method === "POST" ? (
-    await fetch(API[endpoint].url, {
-    method: API[endpoint].method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-    signal: controller.signal,
-  })) : (
-    await fetch(API[endpoint].url + "/" + (data as Record<string, string>)["user"].replace(' ','%20'), {
+  // 5 second timeout:
+  const timeoutId = setTimeout(() => controller.abort(), 5000* 60); // 5 minutes
+
+  let response;
+  if (API[endpoint].method === "POST") {
+    response = await fetch(API[endpoint].url, {
+      method: API[endpoint].method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+  } else if (API[endpoint].method === "DELETE") {
+    response = await fetch(`${API[endpoint].url}`, {
+      method: API[endpoint].method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+  } else {
+    response = await fetch(API[endpoint].url + "/" + (data as Record<string, string>)["user"].replace(' ','%20'), {
       method: API[endpoint].method,
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
-  }))
-  ;
+    });
+  }
   
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${JSON.stringify(await response.json())}`);
