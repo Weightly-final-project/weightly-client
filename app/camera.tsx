@@ -442,11 +442,12 @@ export default function CameraScreen() {
       <AppHeader title="Camera" showBack={true} />
 
       <View style={styles.cameraContainer}>
-        {capturedPhotos.length < requiredPhotos && (
+        {capturedPhotos.length < requiredPhotos && (<>
           <CameraView
             ref={cameraRef}
             style={styles.camera}
-          >
+          />
+          <View style={styles.cameraOverlay}>
             <OrientationGuide
               onOrientationValid={setIsOrientationValid}
               mode={mode}
@@ -492,7 +493,8 @@ export default function CameraScreen() {
                 isProcessing={isProcessing}
               />
             </View>
-          </CameraView>
+            </View>
+          </>
         )}
         {renderPhotoPreview()}
       </View>
@@ -547,8 +549,6 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
-    justifyContent: "space-between",
-    flexDirection: "column",
     width: "100%",
   },
   cameraHeader: {
@@ -582,6 +582,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "transparent",
     justifyContent: "space-between",
+    flexDirection: "column",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
   },
   cameraInstructions: {
     alignItems: "center",
