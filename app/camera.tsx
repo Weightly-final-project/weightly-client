@@ -80,13 +80,13 @@ export default function CameraScreen() {
   const outputImageMutation = useOutput_imageMutation();
   const referenceCalculatorMutation = useReference_calculatorMutation();
 
-  const requiredPhotos = mode === 'top-down' ? 1 : 2;
+  const requiredPhotos = 2;
 
   const getPhotoInstructions = () => {
     if (mode === 'top-down') {
       return "Take a top-down photo of the object";
     }
-    return `Take horizontal photo ${currentPhotoIndex + 1} of ${requiredPhotos}`;
+    return `Take horizontal photo of the object.`;
   };
 
   useEffect(() => {
@@ -350,7 +350,7 @@ export default function CameraScreen() {
         skipProcessing: false,
       });
 
-      if(!photo) {
+      if (!photo) {
         Alert.alert(
           "Could not take picture",
           "Try again if problem persists contact support",
@@ -442,53 +442,57 @@ export default function CameraScreen() {
       <AppHeader title="Camera" showBack={true} />
 
       <View style={styles.cameraContainer}>
-        {capturedPhotos.length < requiredPhotos && (<>
+        {capturedPhotos.length < requiredPhotos && (
           <CameraView
             ref={cameraRef}
             style={styles.camera}
-          />
-          <OrientationGuide
-            onOrientationValid={setIsOrientationValid}
-            mode={mode}
-          />
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.modeButton, mode === 'top-down' && styles.activeModeButton]}
-              onPress={() => setMode('top-down')}
-            >
-              <Icon name="arrow-down" type="material-community" color={mode === 'top-down' ? '#4CAF50' : '#FFF'} />
-              <Text style={[styles.modeButtonText, mode === 'top-down' && styles.activeModeButtonText]}>Top-Down</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeButton, mode === 'horizontal' && styles.activeModeButton]}
-              onPress={() => setMode('horizontal')}
-            >
-              <Icon name="camera" type="material-community" color={mode === 'horizontal' ? '#4CAF50' : '#FFF'} />
-              <Text style={[styles.modeButtonText, mode === 'horizontal' && styles.activeModeButtonText]}>Horizontal</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.instructionsContainer}>
-            <Text style={styles.instructionsText}>{getPhotoInstructions()}</Text>
-            <Text style={styles.photoCountText}>
-              Photo {currentPhotoIndex + 1} of {requiredPhotos}
-            </Text>
-          </View>
-          <CameraControls
-            onCapture={takePicture}
-            onPickImage={(photo: CameraCapturedPicture | undefined) => {
-              if (!photo) return;
-              const newPhoto: CapturedPhoto = {
-                photo: photo,
-                processed: false,
-              };
-              const updatedPhotos = [...capturedPhotos];
-              updatedPhotos[currentPhotoIndex] = newPhoto;
-              setCapturedPhotos(updatedPhotos);
-              processPhoto(newPhoto);
-            }}
-            isProcessing={isProcessing}
-          />
-        </>
+          >
+            <OrientationGuide
+              onOrientationValid={setIsOrientationValid}
+              mode={mode}
+            />
+            <View style={styles.buttonContainer}>
+              <View style={styles.buttonContainerInner} >
+              <TouchableOpacity
+                style={[styles.modeButton, mode === 'top-down' && styles.activeModeButton]}
+                onPress={() => setMode('top-down')}
+              >
+                <Icon name="arrow-down" type="material-community" color={mode === 'top-down' ? '#4CAF50' : '#FFF'} />
+                <Text style={[styles.modeButtonText, mode === 'top-down' && styles.activeModeButtonText]}>Top-Down</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeButton, mode === 'horizontal' && styles.activeModeButton]}
+                onPress={() => setMode('horizontal')}
+              >
+                <Icon name="camera" type="material-community" color={mode === 'horizontal' ? '#4CAF50' : '#FFF'} />
+                <Text style={[styles.modeButtonText, mode === 'horizontal' && styles.activeModeButtonText]}>Horizontal</Text>
+              </TouchableOpacity>
+              </View>
+            </View>
+            <View>
+              <View style={styles.instructionsContainer}>
+                <Text style={styles.instructionsText}>{getPhotoInstructions()}</Text>
+                <Text style={styles.photoCountText}>
+                  Photo {currentPhotoIndex + 1} of {requiredPhotos}
+                </Text>
+              </View>
+              <CameraControls
+                onCapture={takePicture}
+                onPickImage={(photo: CameraCapturedPicture | undefined) => {
+                  if (!photo) return;
+                  const newPhoto: CapturedPhoto = {
+                    photo: photo,
+                    processed: false,
+                  };
+                  const updatedPhotos = [...capturedPhotos];
+                  updatedPhotos[currentPhotoIndex] = newPhoto;
+                  setCapturedPhotos(updatedPhotos);
+                  processPhoto(newPhoto);
+                }}
+                isProcessing={isProcessing}
+              />
+            </View>
+          </CameraView>
         )}
         {renderPhotoPreview()}
       </View>
@@ -543,6 +547,9 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
+    justifyContent: "space-between",
+    flexDirection: "column",
+    width: "100%",
   },
   cameraHeader: {
     flexDirection: "row",
@@ -772,6 +779,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 10,
     right: 0,
+  },
+  buttonContainerInner: {
     gap: 8,
   },
   modeButton: {
