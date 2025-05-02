@@ -276,7 +276,7 @@ export default function CameraScreen() {
         if (pred1.annotated_s3_uri) {
           const updatedPhotos = [...capturedPhotos];
           updatedPhotos[currentPhotoIndex] = {
-            ...photo,
+            photo: photo.photo,
             processed: true,
             annotatedImage: {
               image_s3_uri: `s3://weighlty/${res1.Key}`,
@@ -352,6 +352,15 @@ export default function CameraScreen() {
         quality: 0.8,
         skipProcessing: false,
       });
+
+      if(!photo) {
+        Alert.alert(
+          "Could not take picture",
+          "Try again if problem persists contact support",
+          [{ text: "OK" }]
+        );
+        return;
+      }
 
       if (photo?.exif?.Orientation === 6) {
         const temp = photo.width;
