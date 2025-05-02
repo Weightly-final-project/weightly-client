@@ -83,7 +83,7 @@ export const OrientationGuide: React.FC<OrientationGuideProps> = ({ onOrientatio
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 100,
+    top: 10,
     left: 0,
     right: 0,
     alignItems: 'center',
