@@ -20,15 +20,12 @@ import {
 import { useRouter } from "expo-router";
 import { Icon } from "react-native-elements";
 
-import { uploadFile, getFile } from "../utils/s3";
+import { uploadFile } from "../utils/s3";
 import { hooks } from "../utils/api";
-import ImagePickerExample from "../components/pickImage";
 import Permission from "../components/Permission";
 import { Buffer } from "buffer";
 import { bigBboxCalculator } from "@/utils/functions";
-import CameraHeader from "../components/CameraHeader";
 import CameraControls from "../components/CameraControls";
-import ImagePreview from "../components/ImagePreview";
 import AppHeader from "../components/AppHeader";
 import { useAuth } from "@/utils/AuthContext";
 import { ManualBoundingBox } from "../components/ManualBoundingBox";
