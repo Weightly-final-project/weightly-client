@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { Card, Chip, Divider } from "react-native-paper";
-import { ArrowLeft } from "lucide-react-native";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { hooks } from "@/utils/api";
 import { Icon } from "react-native-elements";
@@ -148,7 +147,7 @@ export default function PredictionScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <ArrowLeft color="#fff" size={24} />
+          <Icon name="arrow-back" type="material" color="#fff" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Prediction Details</Text>
         <View></View>
