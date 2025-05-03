@@ -20,15 +20,12 @@ import {
 import { useRouter } from "expo-router";
 import { Icon } from "react-native-elements";
 
-import { uploadFile, getFile } from "../utils/s3";
+import { uploadFile } from "../utils/s3";
 import { hooks } from "../utils/api";
-import ImagePickerExample from "../components/pickImage";
 import Permission from "../components/Permission";
 import { Buffer } from "buffer";
 import { bigBboxCalculator } from "@/utils/functions";
-import CameraHeader from "../components/CameraHeader";
 import CameraControls from "../components/CameraControls";
-import ImagePreview from "../components/ImagePreview";
 import AppHeader from "../components/AppHeader";
 import { useAuth } from "@/utils/AuthContext";
 import { ManualBoundingBox } from "../components/ManualBoundingBox";
@@ -83,13 +80,13 @@ export default function CameraScreen() {
   const outputImageMutation = useOutput_imageMutation();
   const referenceCalculatorMutation = useReference_calculatorMutation();
 
-  const requiredPhotos = mode === 'top-down' ? 1 : 2;
+  const requiredPhotos = 2;
 
   const getPhotoInstructions = () => {
     if (mode === 'top-down') {
       return "Take a top-down photo of the object";
     }
-    return `Take horizontal photo ${currentPhotoIndex + 1} of ${requiredPhotos}`;
+    return `Take horizontal photo of the object.`;
   };
 
   useEffect(() => {
@@ -276,7 +273,7 @@ export default function CameraScreen() {
         if (pred1.annotated_s3_uri) {
           const updatedPhotos = [...capturedPhotos];
           updatedPhotos[currentPhotoIndex] = {
-            ...photo,
+            photo: photo.photo,
             processed: true,
             annotatedImage: {
               image_s3_uri: `s3://weighlty/${res1.Key}`,
@@ -352,6 +349,15 @@ export default function CameraScreen() {
         quality: 0.8,
         skipProcessing: false,
       });
+
+      if (!photo) {
+        Alert.alert(
+          "Could not take picture",
+          "Try again if problem persists contact support",
+          [{ text: "OK" }]
+        );
+        return;
+      }
 
       if (photo?.exif?.Orientation === 6) {
         const temp = photo.width;
@@ -436,16 +442,18 @@ export default function CameraScreen() {
       <AppHeader title="Camera" showBack={true} />
 
       <View style={styles.cameraContainer}>
-        {capturedPhotos.length < requiredPhotos && (
+        {capturedPhotos.length < requiredPhotos && (<>
           <CameraView
             ref={cameraRef}
             style={styles.camera}
-          >
+          />
+          <View style={styles.cameraOverlay}>
             <OrientationGuide
               onOrientationValid={setIsOrientationValid}
               mode={mode}
             />
             <View style={styles.buttonContainer}>
+              <View style={styles.buttonContainerInner} >
               <TouchableOpacity
                 style={[styles.modeButton, mode === 'top-down' && styles.activeModeButton]}
                 onPress={() => setMode('top-down')}
@@ -460,29 +468,33 @@ export default function CameraScreen() {
                 <Icon name="camera" type="material-community" color={mode === 'horizontal' ? '#4CAF50' : '#FFF'} />
                 <Text style={[styles.modeButtonText, mode === 'horizontal' && styles.activeModeButtonText]}>Horizontal</Text>
               </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.instructionsContainer}>
-              <Text style={styles.instructionsText}>{getPhotoInstructions()}</Text>
-              <Text style={styles.photoCountText}>
-                Photo {currentPhotoIndex + 1} of {requiredPhotos}
-              </Text>
+            <View>
+              <View style={styles.instructionsContainer}>
+                <Text style={styles.instructionsText}>{getPhotoInstructions()}</Text>
+                <Text style={styles.photoCountText}>
+                  Photo {currentPhotoIndex + 1} of {requiredPhotos}
+                </Text>
+              </View>
+              <CameraControls
+                onCapture={takePicture}
+                onPickImage={(photo: CameraCapturedPicture | undefined) => {
+                  if (!photo) return;
+                  const newPhoto: CapturedPhoto = {
+                    photo: photo,
+                    processed: false,
+                  };
+                  const updatedPhotos = [...capturedPhotos];
+                  updatedPhotos[currentPhotoIndex] = newPhoto;
+                  setCapturedPhotos(updatedPhotos);
+                  processPhoto(newPhoto);
+                }}
+                isProcessing={isProcessing}
+              />
             </View>
-            <CameraControls
-              onCapture={takePicture}
-              onPickImage={(photo: CameraCapturedPicture | undefined) => {
-                if (!photo) return;
-                const newPhoto: CapturedPhoto = {
-                  photo: photo,
-                  processed: false,
-                };
-                const updatedPhotos = [...capturedPhotos];
-                updatedPhotos[currentPhotoIndex] = newPhoto;
-                setCapturedPhotos(updatedPhotos);
-                processPhoto(newPhoto);
-              }}
-              isProcessing={isProcessing}
-            />
-          </CameraView>
+            </View>
+          </>
         )}
         {renderPhotoPreview()}
       </View>
@@ -537,6 +549,7 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
+    width: "100%",
   },
   cameraHeader: {
     flexDirection: "row",
@@ -569,6 +582,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "transparent",
     justifyContent: "space-between",
+    flexDirection: "column",
+    position: "absolute",
+    width: "100%",
+    height: "100%",
   },
   cameraInstructions: {
     alignItems: "center",
@@ -743,10 +760,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   instructionsContainer: {
-    position: 'absolute',
-    top: 160,
-    left: 0,
-    right: 0,
     alignItems: 'center',
   },
   instructionsText: {
@@ -768,8 +781,10 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     position: 'absolute',
-    top: 80,
-    right: 16,
+    bottom: 10,
+    right: 0,
+  },
+  buttonContainerInner: {
     gap: 8,
   },
   modeButton: {
