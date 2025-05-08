@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity } from "react-native";
 import { Icon } from "react-native-elements";
 import ImagePickerExample from "./pickImage";
 import { CameraCapturedPicture } from "expo-camera";
@@ -14,64 +14,25 @@ const CameraControls = ({
   isProcessing: boolean;
 }) => {
   return (
-    <View style={styles.cameraControls}>
+    <View className="flex-row justify-around items-center py-[30px] px-[30px] w-full">
       <TouchableOpacity
-        style={styles.galleryButton}
+        className="w-[50px] h-[50px] rounded-full bg-white/20 justify-center items-center"
         disabled={isProcessing}
       >
         <ImagePickerExample processImage={onPickImage} />
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.captureButton}
+        className="w-20 h-20 rounded-full bg-white/20 justify-center items-center"
         onPress={onCapture}
         disabled={isProcessing}
       >
         <Icon name="camera" type="font-awesome" color="#FFF" size={24} />
       </TouchableOpacity>
 
-      <View style={styles.placeholderButton} />
+      <View className="w-[50px] h-[50px]" />
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  cameraControls: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 30,
-    paddingHorizontal: 30,
-    width: "100%",
-  },
-  galleryButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  captureButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  captureButtonInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: "#121212",
-  },
-  placeholderButton: {
-    width: 50,
-    height: 50,
-  },
-});
 
 export default CameraControls;

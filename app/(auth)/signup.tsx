@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -34,21 +33,11 @@ export default function SignupScreen() {
   };
 
   const validatePassword = (password: string) => {
-    // Check for minimum length of 8 characters
     if (password.length < 8) return false;
-
-    // Check for at least one lowercase letter
     if (!/[a-z]/.test(password)) return false;
-
-    // Check for at least one uppercase letter
     if (!/[A-Z]/.test(password)) return false;
-
-    // Check for at least one number
     if (!/[0-9]/.test(password)) return false;
-
-    // Check for at least one special character
     if (!/[^A-Za-z0-9]/.test(password)) return false;
-
     return true;
   };
 
@@ -167,17 +156,15 @@ export default function SignupScreen() {
 
   if (isConfirming) {
     return (
-      <View style={styles.container}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Verify Your Account</Text>
-          <Text style={styles.subtitle}>
-            Enter the verification code sent to your email
-          </Text>
+      <View className="flex-1 bg-[#121212]">
+        <View className="px-6 py-10">
+          <Text className="text-3xl font-bold text-white mb-2 text-center">Verify Your Account</Text>
+          <Text className="text-lg text-[#bbb] mb-8 text-center">Enter the verification code sent to your email</Text>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Verification Code</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Verification Code</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={verificationCode}
               onChangeText={setVerificationCode}
               placeholder="Enter verification code"
@@ -187,22 +174,22 @@ export default function SignupScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.button}
+            className="bg-[#6200ee] rounded-lg h-[50px] justify-center items-center mb-6"
             onPress={handleConfirmSignUp}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Verify Account</Text>
+              <Text className="text-white text-base font-bold">Verify Account</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.linkButton}
+            className="items-center mb-6"
             onPress={handleResendCode}
           >
-            <Text style={styles.linkText}>Resend verification code</Text>
+            <Text className="text-[#6200ee] text-sm">Resend verification code</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -211,18 +198,18 @@ export default function SignupScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 bg-[#121212]"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Sign up to get started</Text>
+      <ScrollView className="flex-grow justify-center">
+        <View className="px-6 py-10">
+          <Text className="text-3xl font-bold text-white mb-2 text-center">Create Account</Text>
+          <Text className="text-lg text-[#bbb] mb-8 text-center">Sign up to get started</Text>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Username</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Username</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={username}
               onChangeText={setUsername}
               placeholder="Enter your username"
@@ -231,10 +218,10 @@ export default function SignupScreen() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Email</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={email}
               onChangeText={setEmail}
               placeholder="Enter your email"
@@ -244,10 +231,10 @@ export default function SignupScreen() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Phone Number</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Phone Number</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={phoneNumber}
               onChangeText={setPhoneNumber}
               placeholder="Enter phone number with country code (e.g. +1234567890)"
@@ -256,10 +243,10 @@ export default function SignupScreen() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Family Name</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Family Name</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={familyName}
               onChangeText={setFamilyName}
               placeholder="Enter your family name"
@@ -267,10 +254,10 @@ export default function SignupScreen() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Password</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={password}
               onChangeText={setPassword}
               placeholder="Create a password"
@@ -279,10 +266,10 @@ export default function SignupScreen() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm Password</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Confirm Password</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirm your password"
@@ -292,21 +279,21 @@ export default function SignupScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.button}
+            className="bg-[#6200ee] rounded-lg h-[50px] justify-center items-center mb-6"
             onPress={handleSignUp}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
+              <Text className="text-white text-base font-bold">Sign Up</Text>
             )}
           </TouchableOpacity>
 
-          <View style={styles.signInContainer}>
-            <Text style={styles.signInText}>Already have an account?</Text>
+          <View className="flex-row justify-center items-center">
+            <Text className="text-[#bbb] text-sm mr-1">Already have an account?</Text>
             <TouchableOpacity onPress={navigateToSignIn}>
-              <Text style={styles.signInLink}>Sign In</Text>
+              <Text className="text-[#6200ee] text-sm font-bold">Sign In</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -314,83 +301,3 @@ export default function SignupScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  formContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 40,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 18,
-    color: "#bbb",
-    marginBottom: 32,
-    textAlign: "center",
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    color: "#fff",
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
-    height: 50,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: "#fff",
-  },
-  button: {
-    backgroundColor: "#6200ee",
-    borderRadius: 8,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  signInContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  signInText: {
-    color: "#bbb",
-    fontSize: 14,
-    marginRight: 4,
-  },
-  signInLink: {
-    color: "#6200ee",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  linkButton: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  linkText: {
-    color: "#6200ee",
-    fontSize: 14,
-  },
-});

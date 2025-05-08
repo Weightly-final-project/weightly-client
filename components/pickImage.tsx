@@ -1,4 +1,4 @@
-import { Button, View, StyleSheet } from 'react-native';
+import { Button, View } from 'react-native';
 import {launchImageLibraryAsync} from 'expo-image-picker';
 import { CameraCapturedPicture } from 'expo-camera';
 
@@ -23,16 +23,8 @@ export default function ImagePickerExample(props: {
   };
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 items-center justify-center">
       <Button title="Pick an image from camera roll" onPress={pickImage} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  }
-});

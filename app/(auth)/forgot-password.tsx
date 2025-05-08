@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -96,24 +95,23 @@ export default function ForgotPasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 bg-[#121212]"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Reset Password</Text>
+      <ScrollView className="flex-grow justify-center">
+        <View className="px-6 py-10">
+          <Text className="text-3xl font-bold text-white mb-2 text-center">Reset Password</Text>
 
           {!isResetRequested ? (
             <>
-              <Text style={styles.subtitle}>
-                Enter your username and we'll send you a code to reset your
-                password
+              <Text className="text-base text-[#bbb] mb-8 text-center">
+                Enter your username and we'll send you a code to reset your password
               </Text>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Username</Text>
+              <View className="mb-5">
+                <Text className="text-base text-white mb-2">Username</Text>
                 <TextInput
-                  style={styles.input}
+                  className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
                   value={username}
                   onChangeText={setUsername}
                   placeholder="Enter your username"
@@ -123,28 +121,27 @@ export default function ForgotPasswordScreen() {
               </View>
 
               <TouchableOpacity
-                style={styles.button}
+                className="bg-[#6200ee] rounded-lg h-[50px] justify-center items-center mb-6"
                 onPress={handleResetPassword}
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Send Reset Code</Text>
+                  <Text className="text-white text-base font-bold">Send Reset Code</Text>
                 )}
               </TouchableOpacity>
             </>
           ) : (
             <>
-              <Text style={styles.subtitle}>
-                Enter the verification code sent to your email and create a new
-                password
+              <Text className="text-base text-[#bbb] mb-8 text-center">
+                Enter the verification code sent to your email and create a new password
               </Text>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Verification Code</Text>
+              <View className="mb-5">
+                <Text className="text-base text-white mb-2">Verification Code</Text>
                 <TextInput
-                  style={styles.input}
+                  className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
                   value={code}
                   onChangeText={setCode}
                   placeholder="Enter verification code"
@@ -153,10 +150,10 @@ export default function ForgotPasswordScreen() {
                 />
               </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>New Password</Text>
+              <View className="mb-5">
+                <Text className="text-base text-white mb-2">New Password</Text>
                 <TextInput
-                  style={styles.input}
+                  className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
                   value={newPassword}
                   onChangeText={setNewPassword}
                   placeholder="Create a new password"
@@ -165,10 +162,10 @@ export default function ForgotPasswordScreen() {
                 />
               </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Confirm New Password</Text>
+              <View className="mb-5">
+                <Text className="text-base text-white mb-2">Confirm New Password</Text>
                 <TextInput
-                  style={styles.input}
+                  className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholder="Confirm your new password"
@@ -178,88 +175,24 @@ export default function ForgotPasswordScreen() {
               </View>
 
               <TouchableOpacity
-                style={styles.button}
+                className="bg-[#6200ee] rounded-lg h-[50px] justify-center items-center mb-6"
                 onPress={handleSubmitNewPassword}
                 disabled={isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Reset Password</Text>
+                  <Text className="text-white text-base font-bold">Reset Password</Text>
                 )}
               </TouchableOpacity>
             </>
           )}
 
-          <TouchableOpacity style={styles.backButton} onPress={goBack}>
-            <Text style={styles.backButtonText}>Back to Sign In</Text>
+          <TouchableOpacity className="items-center" onPress={goBack}>
+            <Text className="text-[#6200ee] text-sm">Back to Sign In</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  formContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 40,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#bbb",
-    marginBottom: 32,
-    textAlign: "center",
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    color: "#fff",
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
-    height: 50,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: "#fff",
-  },
-  button: {
-    backgroundColor: "#6200ee",
-    borderRadius: 8,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  backButton: {
-    alignItems: "center",
-  },
-  backButtonText: {
-    color: "#6200ee",
-    fontSize: 14,
-  },
-});

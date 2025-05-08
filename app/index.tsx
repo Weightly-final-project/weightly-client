@@ -2,7 +2,6 @@ import {
   FlatList,
   Platform,
   RefreshControl,
-  StyleSheet,
   Text,
   View,
   Alert,
@@ -25,11 +24,9 @@ export default function PredictionListScreen() {
   >(undefined);
   const [loading, setLoading] = useState(true);
 
-  // Use useCallback with empty dependency array to prevent recreation
   const fetchResult = useCallback(() => {
     setLoading(true);
 
-    // Use the authenticated user's username if available, otherwise fallback to guest
     const userId = user?.username || "guest";
 
     console.log("Fetching predictions for user:", userId);
@@ -46,12 +43,10 @@ export default function PredictionListScreen() {
             return;
           }
 
-          // Create a copy of the initial predictions
           let updatedPredictions = [...pre];
           let imageUrlsProcessed = false;
           let annotatedUrlsProcessed = false;
 
-          // Function to update state once both async operations complete
           const updateStateIfComplete = () => {
             if (imageUrlsProcessed && annotatedUrlsProcessed) {
               console.log("All prediction URLs processed, updating state");
@@ -60,7 +55,6 @@ export default function PredictionListScreen() {
             }
           };
 
-          // Get image URLs
           getFiles(
             pre.map((item) => item.image_s3_uri),
             "weighlty"
@@ -68,7 +62,6 @@ export default function PredictionListScreen() {
             .then((results) => {
               console.log(`Processed ${results.length} image URLs`);
 
-              // Update the predictions with image URLs
               updatedPredictions = updatedPredictions.map((item, index) => ({
                 ...item,
                 download_image_s3_uri: results[index]?.url,
@@ -83,7 +76,6 @@ export default function PredictionListScreen() {
               updateStateIfComplete();
             });
 
-          // Get annotated image URLs
           getFiles(
             pre.map((item) => item.annotated_s3_uri),
             "weighlty"
@@ -91,7 +83,6 @@ export default function PredictionListScreen() {
             .then((results) => {
               console.log(`Processed ${results.length} annotated image URLs`);
 
-              // Update the predictions with annotated image URLs
               updatedPredictions = updatedPredictions.map((item, index) => ({
                 ...item,
                 download_annotated_s3_uri: results[index]?.url,
@@ -113,13 +104,12 @@ export default function PredictionListScreen() {
         },
       }
     );
-  }, [user?.username]); // Update dependency array to include user
+  }, [user?.username]);
 
-  // Run when component mounts or user changes
   useEffect(() => {
     console.log("Predictions screen mounted or user changed, fetching data");
     fetchResult();
-  }, [fetchResult]); // Update dependency array
+  }, [fetchResult]);
 
   const handleRefresh = () => {
     console.log("Manual refresh triggered");
@@ -127,43 +117,42 @@ export default function PredictionListScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-[#121212]">
       <AppHeader title="Predictions" />
 
-      <View style={styles.contentContainer}>
-        <View style={styles.actionContainer}>
+      <View className="flex-1 pt-4">
+        <View className="px-4 pb-4 flex-row justify-end">
           <Link href="/camera" asChild>
-            <Button mode="contained" icon="camera" style={styles.cameraButton}>
+            <Button mode="contained" icon="camera" className="bg-[#6200ee]">
               Camera
             </Button>
           </Link>
         </View>
 
         {loading ? (
-          <View style={styles.loadingContainer}>
+          <View className="flex-1 justify-center items-center">
             <ActivityIndicator size="large" color="#6200ee" />
-            <Text style={styles.loadingText}>Loading predictions...</Text>
+            <Text className="mt-4 text-base text-[#666]">Loading predictions...</Text>
           </View>
         ) : predictions && predictions.length > 0 ? (
           <>
-            <Text style={styles.pullToRefreshHint}>Pull down to refresh</Text>
+            <Text className="text-center text-[#999] text-xs pb-2 px-4">
+              Pull down to refresh
+            </Text>
             <FlatList
               data={predictions}
               keyExtractor={(item) => item.prediction_id}
-              renderItem={({ item }) => {
-                return (
-                  <PredictionItem
-                    item={item}
-                    onDelete={() => {
-                      // Remove the deleted prediction from the state
-                      setPredictions((prev) =>
-                        prev?.filter((p) => p.prediction_id !== item.prediction_id)
-                      );
-                    }}
-                  />
-                );
-              }}
-              contentContainerStyle={styles.listContent}
+              renderItem={({ item }) => (
+                <PredictionItem
+                  item={item}
+                  onDelete={() => {
+                    setPredictions((prev) =>
+                      prev?.filter((p) => p.prediction_id !== item.prediction_id)
+                    );
+                  }}
+                />
+              )}
+              className="px-4 py-2"
               showsVerticalScrollIndicator={false}
               refreshControl={
                 <RefreshControl
@@ -176,10 +165,10 @@ export default function PredictionListScreen() {
             />
           </>
         ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No predictions found</Text>
+          <View className="flex-1 justify-center items-center p-6">
+            <Text className="text-lg text-[#666] mb-6">No predictions found</Text>
             <Link href="/camera" asChild>
-              <Button mode="contained" icon="plus" style={styles.addButton}>
+              <Button mode="contained" icon="plus" className="bg-[#6200ee]">
                 Create New Prediction
               </Button>
             </Link>
@@ -189,58 +178,3 @@ export default function PredictionListScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  contentContainer: {
-    flex: 1,
-    paddingTop: 16,
-  },
-  actionContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-  },
-  cameraButton: {
-    backgroundColor: "#6200ee",
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#666",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  emptyText: {
-    fontSize: 18,
-    color: "#666",
-    marginBottom: 24,
-  },
-  addButton: {
-    backgroundColor: "#6200ee",
-  },
-  pullToRefreshHint: {
-    textAlign: "center",
-    color: "#999",
-    fontSize: 12,
-    paddingBottom: 8,
-    paddingHorizontal: 16,
-  },
-});

@@ -1,5 +1,5 @@
 import React, { ReactNode } from "react";
-import { View, StyleSheet, StyleProp, ViewStyle } from "react-native";
+import { View, StyleProp, ViewStyle } from "react-native";
 import { Surface } from "react-native-paper";
 
 interface SurfaceWrapperProps {
@@ -22,23 +22,10 @@ export const SurfaceWrapper = ({
   elevation = 1,
 }: SurfaceWrapperProps) => {
   return (
-    <Surface style={[styles.surface, { elevation }, style]}>
-      <View style={[styles.content, contentStyle]}>{children}</View>
+    <Surface style={[{ elevation }, style]}>
+      <View className="overflow-hidden rounded-lg" style={contentStyle}>{children}</View>
     </Surface>
   );
 };
-
-const styles = StyleSheet.create({
-  surface: {
-    // Surface should not have overflow: 'hidden'
-    // Let it render the shadow properly
-  },
-  content: {
-    // Put overflow: 'hidden' on the content wrapper
-    overflow: "hidden",
-    // Match border radius from parent
-    borderRadius: 8,
-  },
-});
 
 export default SurfaceWrapper;

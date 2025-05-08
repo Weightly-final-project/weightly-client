@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-  StatusBar,
-} from "react-native";
+import { View, Text, TouchableOpacity, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import LogoutButton from "./LogoutButton";
@@ -27,46 +20,20 @@ export default function AppHeader({
   const { user } = useAuth();
 
   return (
-    <View style={styles.header}>
-      <View style={styles.leftContainer}>
+    <View className={`flex-row items-center justify-between px-4 bg-[#121212] border-b border-[#2a2a2a] ${Platform.OS === "ios" ? "h-[90px] pt-10" : "h-[60px]"}`}>
+      <View className="flex-row items-center">
         {showBack && (
           <TouchableOpacity
             onPress={() => router.back()}
-            style={styles.backButton}
+            className="mr-2"
           >
             <Ionicons name="chevron-back" size={28} color="#fff" />
           </TouchableOpacity>
         )}
-        <Text style={styles.title}>{title}</Text>
+        <Text className="text-xl font-bold text-white">{title}</Text>
       </View>
 
       {showLogout && user && <LogoutButton variant="icon" />}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    height: Platform.OS === "ios" ? 90 : 60,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 40 : 0,
-    backgroundColor: "#121212",
-    borderBottomWidth: 1,
-    borderBottomColor: "#2a2a2a",
-  },
-  leftContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  backButton: {
-    marginRight: 8,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-});

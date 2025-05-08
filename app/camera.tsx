@@ -10,8 +10,6 @@ import {
   Text,
   Image,
   TouchableOpacity,
-  StyleSheet,
-  Dimensions,
   ActivityIndicator,
   Alert,
   StatusBar,
@@ -97,12 +95,9 @@ export default function CameraScreen() {
 
   if (!permission || !permission.granted) {
     return (
-      <View style={styles.container}>
+      <View className="flex-1 bg-black">
         <AppHeader title="Camera" showBack={true} />
-        <Permission
-          permissionType={"camera"}
-          requestPermissions={requestPermissions}
-        />
+        <Permission permissionType={"camera"} requestPermissions={requestPermissions} />
       </View>
     );
   }
@@ -381,16 +376,16 @@ export default function CameraScreen() {
   const renderPhotoPreview = () => {
     if (showManualBoundingBox && capturedPhotos[currentPhotoIndex]) {
       return (
-        <View style={styles.container}>
+        <View className="flex-1 bg-black">
           <AppHeader title="Manual Selection" showBack={true} />
           <ManualBoundingBox
             imageUri={capturedPhotos[currentPhotoIndex].photo.uri}
             onBoundingBoxSelected={handleManualBoundingBox}
           />
           {isProcessing && (
-            <View style={styles.processingContainer}>
+            <View className="absolute inset-0 justify-center items-center bg-black/50">
               <ActivityIndicator size="large" color="#FFF" />
-              <Text style={styles.processingText}>{pictureStatus}</Text>
+              <Text className="text-white text-lg font-bold mt-4">{pictureStatus}</Text>
             </View>
           )}
         </View>
@@ -399,16 +394,16 @@ export default function CameraScreen() {
 
     if (capturedPhotos.length > 0) {
       return (
-        <View style={styles.previewContainer}>
-          <ScrollView horizontal pagingEnabled style={styles.previewScroll}>
+        <View className="flex-1 justify-center items-center">
+          <ScrollView horizontal pagingEnabled className="flex-1">
             {capturedPhotos.map((photo, index) => (
-              <View key={index} style={styles.previewImageContainer}>
-                <Image source={{ uri: photo.photo.uri }} style={styles.previewImage} />
-                <View style={styles.previewOverlay}>
-                  <Text style={styles.previewText}>Photo {index + 1}</Text>
+              <View key={index} className="w-full h-[70%] relative">
+                <Image source={{ uri: photo.photo.uri }} className="w-full h-full" />
+                <View className="absolute bottom-0 left-0 right-0 bg-black/50 p-4 flex-row justify-between items-center">
+                  <Text className="text-white text-base font-bold">Photo {index + 1}</Text>
                   {!photo.processed && (
                     <TouchableOpacity
-                      style={styles.retakeButton}
+                      className="bg-[#6200ee] px-4 py-2 rounded-lg"
                       onPress={() => {
                         const newPhotos = [...capturedPhotos];
                         newPhotos.splice(index);
@@ -416,7 +411,7 @@ export default function CameraScreen() {
                         setCurrentPhotoIndex(index);
                       }}
                     >
-                      <Text style={styles.retakeButtonText}>Retake</Text>
+                      <Text className="text-white text-sm font-bold">Retake</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -424,9 +419,9 @@ export default function CameraScreen() {
             ))}
           </ScrollView>
           {isProcessing && (
-            <View style={styles.processingContainer}>
+            <View className="absolute inset-0 justify-center items-center bg-black/50">
               <ActivityIndicator size="large" color="#FFF" />
-              <Text style={styles.processingText}>{pictureStatus}</Text>
+              <Text className="text-white text-lg font-bold mt-4">{pictureStatus}</Text>
             </View>
           )}
         </View>
@@ -437,407 +432,90 @@ export default function CameraScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-black">
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <AppHeader title="Camera" showBack={true} />
 
-      <View style={styles.cameraContainer}>
-        {capturedPhotos.length < requiredPhotos && (<>
-          <CameraView
-            ref={cameraRef}
-            style={styles.camera}
-          />
-          <View style={styles.cameraOverlay}>
-            <OrientationGuide
-              onOrientationValid={setIsOrientationValid}
-              mode={mode}
-            />
-            <View style={styles.buttonContainer}>
-              <View style={styles.buttonContainerInner} >
-              <TouchableOpacity
-                style={[styles.modeButton, mode === 'top-down' && styles.activeModeButton]}
-                onPress={() => setMode('top-down')}
-              >
-                <Icon name="arrow-down" type="material-community" color={mode === 'top-down' ? '#4CAF50' : '#FFF'} />
-                <Text style={[styles.modeButtonText, mode === 'top-down' && styles.activeModeButtonText]}>Top-Down</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modeButton, mode === 'horizontal' && styles.activeModeButton]}
-                onPress={() => setMode('horizontal')}
-              >
-                <Icon name="camera" type="material-community" color={mode === 'horizontal' ? '#4CAF50' : '#FFF'} />
-                <Text style={[styles.modeButtonText, mode === 'horizontal' && styles.activeModeButtonText]}>Horizontal</Text>
-              </TouchableOpacity>
+      <View className="flex-1 justify-center items-center">
+        {capturedPhotos.length < requiredPhotos && (
+          <>
+            <CameraView ref={cameraRef} className="flex-1 w-full" />
+            <View className="flex-1 bg-transparent justify-between flex-col absolute w-full h-full">
+              <OrientationGuide onOrientationValid={setIsOrientationValid} mode={mode} />
+              <View className="absolute bottom-10 right-0">
+                <View className="gap-2">
+                  <TouchableOpacity
+                    className={`bg-black/50 p-3 rounded-lg items-center mx-2 ${mode === 'top-down' ? 'bg-black/80' : ''}`}
+                    onPress={() => setMode('top-down')}
+                  >
+                    <Icon 
+                      name="arrow-down" 
+                      type="material-community" 
+                      color={mode === 'top-down' ? '#4CAF50' : '#FFF'} 
+                    />
+                    <Text className={`text-white text-xs mt-1 ${mode === 'top-down' ? 'text-[#4CAF50]' : ''}`}>
+                      Top-Down
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    className={`bg-black/50 p-3 rounded-lg items-center mx-2 ${mode === 'horizontal' ? 'bg-black/80' : ''}`}
+                    onPress={() => setMode('horizontal')}
+                  >
+                    <Icon 
+                      name="camera" 
+                      type="material-community" 
+                      color={mode === 'horizontal' ? '#4CAF50' : '#FFF'} 
+                    />
+                    <Text className={`text-white text-xs mt-1 ${mode === 'horizontal' ? 'text-[#4CAF50]' : ''}`}>
+                      Horizontal
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-            <View>
-              <View style={styles.instructionsContainer}>
-                <Text style={styles.instructionsText}>{getPhotoInstructions()}</Text>
-                <Text style={styles.photoCountText}>
-                  Photo {currentPhotoIndex + 1} of {requiredPhotos}
-                </Text>
+              <View>
+                <View className="items-center">
+                  <Text className="text-white text-lg font-bold text-center bg-black/70 p-3 rounded-lg">
+                    {getPhotoInstructions()}
+                  </Text>
+                  <Text className="text-white text-base mt-2 bg-black/70 p-2 rounded">
+                    Photo {currentPhotoIndex + 1} of {requiredPhotos}
+                  </Text>
+                </View>
+                <CameraControls
+                  onCapture={takePicture}
+                  onPickImage={(photo: CameraCapturedPicture | undefined) => {
+                    if (!photo) return;
+                    const newPhoto: CapturedPhoto = {
+                      photo: photo,
+                      processed: false,
+                    };
+                    const updatedPhotos = [...capturedPhotos];
+                    updatedPhotos[currentPhotoIndex] = newPhoto;
+                    setCapturedPhotos(updatedPhotos);
+                    processPhoto(newPhoto);
+                  }}
+                  isProcessing={isProcessing}
+                />
               </View>
-              <CameraControls
-                onCapture={takePicture}
-                onPickImage={(photo: CameraCapturedPicture | undefined) => {
-                  if (!photo) return;
-                  const newPhoto: CapturedPhoto = {
-                    photo: photo,
-                    processed: false,
-                  };
-                  const updatedPhotos = [...capturedPhotos];
-                  updatedPhotos[currentPhotoIndex] = newPhoto;
-                  setCapturedPhotos(updatedPhotos);
-                  processPhoto(newPhoto);
-                }}
-                isProcessing={isProcessing}
-              />
-            </View>
             </View>
           </>
         )}
-        {renderPhotoPreview()}
+        {showManualBoundingBox && capturedPhotos[currentPhotoIndex] ? (
+          <View className="flex-1 bg-black">
+            <AppHeader title="Manual Selection" showBack={true} />
+            <ManualBoundingBox
+              imageUri={capturedPhotos[currentPhotoIndex].photo.uri}
+              onBoundingBoxSelected={handleManualBoundingBox}
+            />
+            {isProcessing && (
+              <View className="absolute inset-0 justify-center items-center bg-black/50">
+                <ActivityIndicator size="large" color="#FFF" />
+                <Text className="text-white text-lg font-bold mt-4">{pictureStatus}</Text>
+              </View>
+            )}
+          </View>
+        ) : renderPhotoPreview()}
       </View>
     </View>
   );
 }
-
-const { width, height } = Dimensions.get("window");
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    backgroundColor: "#202020",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "white",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(98, 0, 238, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  statusBar: {
-    backgroundColor: "#202020",
-    padding: 8,
-    alignItems: "center",
-  },
-  statusText: {
-    color: "#6200ee",
-    fontSize: 14,
-  },
-  camera: {
-    flex: 1,
-    width: "100%",
-  },
-  cameraHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  cameraHeaderButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cameraTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "white",
-  },
-  cameraOverlay: {
-    flex: 1,
-    backgroundColor: "transparent",
-    justifyContent: "space-between",
-    flexDirection: "column",
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-  },
-  cameraInstructions: {
-    alignItems: "center",
-    marginTop: 100,
-  },
-  instructionBubble: {
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    borderRadius: 20,
-    padding: 12,
-    maxWidth: width * 0.8,
-  },
-  instructionText: {
-    color: "white",
-    textAlign: "center",
-    fontSize: 16,
-  },
-  cameraGuide: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cameraFrame: {
-    width: width * 0.8,
-    height: width * 0.8,
-    borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.5)",
-    borderRadius: 12,
-  },
-  captureButtonInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: "#121212",
-  },
-  imageContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#202020",
-  },
-  previewImage: {
-    width: width,
-    height: height * 0.7,
-    resizeMode: "cover",
-  },
-  actionBar: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    padding: 16,
-    backgroundColor: "#202020",
-  },
-  actionBtn: {
-    backgroundColor: "#333333",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 100,
-  },
-  primaryButton: {
-    backgroundColor: "#6200ee",
-  },
-  actionBtnText: {
-    color: "white",
-    fontWeight: "bold",
-    marginLeft: 8,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  loadingContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#202020",
-    height: height * 0.7,
-  },
-  loadingText: {
-    color: "white",
-    marginTop: 16,
-    textAlign: "center",
-  },
-  dualImageContainer: {
-    flex: 1,
-    flexDirection: "column",
-    padding: 8,
-  },
-  imageWrapper: {
-    flex: 1,
-    margin: 8,
-  },
-  imageLabel: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  touchableImageContainer: {
-    position: "relative",
-    flex: 1,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  dualImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 12,
-    resizeMode: "cover",
-  },
-  pointMarker: {
-    position: "absolute",
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(98, 0, 238, 0.8)",
-    borderWidth: 2,
-    borderColor: "white",
-    justifyContent: "center",
-    alignItems: "center",
-    transform: [{ translateX: -15 }, { translateY: -15 }],
-  },
-  pointNumber: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  pointInstructions: {
-    position: "absolute",
-    bottom: 10,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    padding: 8,
-    alignItems: "center",
-  },
-  pointInstructionsText: {
-    color: "white",
-    fontSize: 14,
-  },
-  previewContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  processingContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  processingText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginTop: 16,
-  },
-  cameraContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  controlsContainer: {
-    flex: 1,
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  instructionsContainer: {
-    alignItems: 'center',
-  },
-  instructionsText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 12,
-    borderRadius: 8,
-  },
-  photoCountText: {
-    color: 'white',
-    fontSize: 16,
-    marginTop: 8,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 8,
-    borderRadius: 4,
-  },
-  buttonContainer: {
-    position: 'absolute',
-    bottom: 10,
-    right: 0,
-  },
-  buttonContainerInner: {
-    gap: 8,
-  },
-  modeButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginHorizontal: 8,
-  },
-  activeModeButton: {
-    backgroundColor: 'rgba(0,0,0,0.8)',
-  },
-  modeButtonText: {
-    color: '#FFF',
-    marginTop: 4,
-    fontSize: 12,
-  },
-  activeModeButtonText: {
-    color: '#4CAF50',
-  },
-  previewScroll: {
-    flex: 1,
-  },
-  previewImageContainer: {
-    width: width,
-    height: height * 0.7,
-    position: 'relative',
-  },
-  previewOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  previewText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  retakeButton: {
-    backgroundColor: '#6200ee',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  retakeButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-});

@@ -65,7 +65,7 @@ const PredictionItem = ({ item, onPress, onDelete }: PredictionItemProps) => {
   };
 
   return (
-    <Card className="mx-4 my-2 rounded-xl bg-[#202020]" mode="elevated">
+    <Card className="my-2 mx-4 rounded-xl bg-[#202020]" mode="elevated">
       <View className="overflow-hidden rounded-xl">
         <Card.Cover source={{ uri: imageUrl }} className="h-[180px] rounded-t-xl" />
 
@@ -118,7 +118,7 @@ const PredictionItem = ({ item, onPress, onDelete }: PredictionItemProps) => {
               <Button
                 mode="contained"
                 onPress={onPress}
-                className="bg-[#6200ee] flex-1"
+                className="bg-[#6200ee]"
                 icon="eye"
               >
                 View Details
@@ -127,7 +127,7 @@ const PredictionItem = ({ item, onPress, onDelete }: PredictionItemProps) => {
             <Button
               mode="contained"
               onPress={handleDelete}
-              className="bg-[#dc3545] flex-1"
+              className="bg-[#dc3545]"
               icon="delete"
             >
               Delete

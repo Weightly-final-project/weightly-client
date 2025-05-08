@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -96,18 +95,18 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 bg-[#121212]"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Weightly</Text>
-          <Text style={styles.subtitle}>Sign in to your account</Text>
+      <ScrollView className="flex-grow justify-center">
+        <View className="px-6 py-10">
+          <Text className="text-3xl font-bold text-white mb-2 text-center">Weightly</Text>
+          <Text className="text-lg text-[#bbb] mb-8 text-center">Sign in to your account</Text>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Username</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Username</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={username}
               onChangeText={setUsername}
               placeholder="Enter your username"
@@ -116,10 +115,10 @@ export default function LoginScreen() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Password</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={password}
               onChangeText={setPassword}
               placeholder="Enter your password"
@@ -129,28 +128,28 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.forgotPassword}
+            className="self-end mb-6"
             onPress={navigateToForgotPassword}
           >
-            <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+            <Text className="text-[#6200ee] text-sm">Forgot password?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.button}
+            className="bg-[#6200ee] rounded-lg h-[50px] justify-center items-center mb-6"
             onPress={handleSignIn}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
+              <Text className="text-white text-base font-bold">Sign In</Text>
             )}
           </TouchableOpacity>
 
-          <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Don't have an account?</Text>
+          <View className="flex-row justify-center items-center">
+            <Text className="text-[#bbb] text-sm mr-1">Don't have an account?</Text>
             <TouchableOpacity onPress={navigateToSignUp}>
-              <Text style={styles.signupLink}>Sign Up</Text>
+              <Text className="text-[#6200ee] text-sm font-bold">Sign Up</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -158,83 +157,3 @@ export default function LoginScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  formContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 40,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 18,
-    color: "#bbb",
-    marginBottom: 32,
-    textAlign: "center",
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    color: "#fff",
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
-    height: 50,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: "#fff",
-  },
-  forgotPassword: {
-    alignSelf: "flex-end",
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    color: "#6200ee",
-    fontSize: 14,
-  },
-  button: {
-    backgroundColor: "#6200ee",
-    borderRadius: 8,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  signupContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  signupText: {
-    color: "#bbb",
-    fontSize: 14,
-    marginRight: 4,
-  },
-  signupLink: {
-    color: "#6200ee",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-});
