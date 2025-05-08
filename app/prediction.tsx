@@ -14,17 +14,17 @@ import {
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { Card, Chip, Divider } from "react-native-paper";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { hooks } from "@/utils/api";
+import { hooks } from "../utils/api";
 import { Icon } from "react-native-elements";
 import { Buffer } from "buffer";
-import weight_mapping from "@/utils/weight_mapping";
+import weight_mapping from "../utils/weight_mapping";
 import {
   getFilenameFromS3Uri,
   formatDate,
   totalVolumeCalculator,
   avarageSizeCalculator,
-} from "@/utils/functions";
-import { useAuth } from "@/utils/AuthContext";
+} from "../utils/functions";
+import { useAuth } from "../utils/AuthContext";
 
 const { useDynmo_createMutation } = hooks;
 

@@ -24,10 +24,10 @@ import { uploadFile } from "../utils/s3";
 import { hooks } from "../utils/api";
 import Permission from "../components/Permission";
 import { Buffer } from "buffer";
-import { bigBboxCalculator } from "@/utils/functions";
+import { bigBboxCalculator } from "../utils/functions";
 import CameraControls from "../components/CameraControls";
 import AppHeader from "../components/AppHeader";
-import { useAuth } from "@/utils/AuthContext";
+import { useAuth } from "../utils/AuthContext";
 import { ManualBoundingBox } from "../components/ManualBoundingBox";
 import { OrientationGuide } from "../components/OrientationGuide";
 
