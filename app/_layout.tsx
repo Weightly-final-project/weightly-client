@@ -15,9 +15,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <UserContextProvider value={{ capturedPhotos: [] }}>
         <AppNavigator />
-        </UserContextProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
