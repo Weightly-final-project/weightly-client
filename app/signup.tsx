@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -175,17 +174,19 @@ export default function SignupScreen() {
 
   if (isConfirming) {
     return (
-      <View style={styles.container}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Verify Your Account</Text>
-          <Text style={styles.subtitle}>
+      <View className="flex-1 bg-[#121212]">
+        <View className="px-6 py-10">
+          <Text className="text-2xl font-bold text-white mb-2 text-center">
+            Verify Your Account
+          </Text>
+          <Text className="text-lg text-[#bbb] mb-8 text-center">
             Enter the verification code sent to your phone
           </Text>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Verification Code</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Verification Code</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={verificationCode}
               onChangeText={setVerificationCode}
               placeholder="Enter verification code"
@@ -196,39 +197,36 @@ export default function SignupScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.button}
+            className="bg-[#6200ee] rounded-lg h-[50px] justify-center items-center mb-6"
             onPress={handleConfirmSignUp}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Verify Account</Text>
+              <Text className="text-white text-base font-bold">
+                Verify Account
+              </Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.linkButton}
+            className="justify-center items-center mb-6"
             onPress={handleResendCode}
           >
-            <Text style={styles.linkText}>Resend verification code</Text>
+            <Text className="text-[#6200ee] text-sm">Resend verification code</Text>
           </TouchableOpacity>
 
-          <View style={styles.infoContainer}>
-            <Text style={styles.infoText}>
+          <View className="bg-[#424242]/50 rounded-lg p-3 mb-6">
+            <Text className="text-[#ddd] text-sm text-center">
               The verification code is sent via SMS to your phone number (
               {phoneNumber}). It may take a few moments to arrive.
             </Text>
           </View>
 
-          {/* Development-only button to skip verification */}
           <TouchableOpacity
-            style={[
-              styles.button,
-              { backgroundColor: "#ff9800", marginTop: 16 },
-            ]}
+            className="bg-[#ff9800] rounded-lg h-[50px] justify-center items-center mt-4"
             onPress={() => {
-              // For development only - skip verification
               Alert.alert(
                 "Development Only",
                 "In a production environment, verification is required. For development, you can proceed to login.",
@@ -245,7 +243,9 @@ export default function SignupScreen() {
               );
             }}
           >
-            <Text style={styles.buttonText}>Skip Verification (Dev Only)</Text>
+            <Text className="text-white text-base font-bold">
+              Skip Verification (Dev Only)
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -254,18 +254,22 @@ export default function SignupScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 bg-[#121212]"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Sign up to get started</Text>
+      <ScrollView className="flex-grow justify-center">
+        <View className="px-6 py-10">
+          <Text className="text-3xl font-bold text-white mb-2 text-center">
+            Create Account
+          </Text>
+          <Text className="text-lg text-[#bbb] mb-8 text-center">
+            Sign up to get started
+          </Text>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Username</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Username</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={username}
               onChangeText={setUsername}
               placeholder="Enter your username"
@@ -274,10 +278,10 @@ export default function SignupScreen() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Email</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={email}
               onChangeText={setEmail}
               placeholder="Enter your email"
@@ -287,31 +291,26 @@ export default function SignupScreen() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>
-              Phone Number{" "}
-              <Text style={styles.labelHighlight}>
-                (Required for Verification)
-              </Text>
-            </Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Phone Number</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={phoneNumber}
               onChangeText={setPhoneNumber}
               placeholder="+1 (with country code)"
               placeholderTextColor="#666"
               keyboardType="phone-pad"
             />
-            <Text style={styles.helperText}>
+            <Text className="text-[#bbb] text-xs mt-1">
               Include country code (e.g., +1 for US). A verification code will
               be sent here.
             </Text>
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Password</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={password}
               onChangeText={setPassword}
               placeholder="Create a password"
@@ -320,10 +319,10 @@ export default function SignupScreen() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm Password</Text>
+          <View className="mb-5">
+            <Text className="text-base text-white mb-2">Confirm Password</Text>
             <TextInput
-              style={styles.input}
+              className="bg-[#2a2a2a] rounded-lg h-[50px] px-4 text-base text-white"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirm your password"
@@ -333,21 +332,23 @@ export default function SignupScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.button}
+            className="bg-[#6200ee] rounded-lg h-[50px] justify-center items-center mb-6"
             onPress={handleSignUp}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
+              <Text className="text-white text-base font-bold">Sign Up</Text>
             )}
           </TouchableOpacity>
 
-          <View style={styles.signInContainer}>
-            <Text style={styles.signInText}>Already have an account?</Text>
+          <View className="flex-row justify-center items-center">
+            <Text className="text-[#bbb] text-sm mr-1">
+              Already have an account?
+            </Text>
             <TouchableOpacity onPress={navigateToSignIn}>
-              <Text style={styles.signInLink}>Sign In</Text>
+              <Text className="text-[#6200ee] text-sm font-bold">Sign In</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -355,104 +356,3 @@ export default function SignupScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  formContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 40,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 18,
-    color: "#bbb",
-    marginBottom: 32,
-    textAlign: "center",
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    color: "#fff",
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: "#2a2a2a",
-    borderRadius: 8,
-    height: 50,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: "#fff",
-  },
-  button: {
-    backgroundColor: "#6200ee",
-    borderRadius: 8,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  signInContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  signInText: {
-    color: "#bbb",
-    fontSize: 14,
-    marginRight: 4,
-  },
-  signInLink: {
-    color: "#6200ee",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  linkButton: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  linkText: {
-    color: "#6200ee",
-    fontSize: 14,
-  },
-  infoContainer: {
-    backgroundColor: "rgba(66, 66, 66, 0.5)",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 24,
-  },
-  infoText: {
-    color: "#ddd",
-    fontSize: 14,
-    textAlign: "center",
-  },
-  helperText: {
-    color: "#bbb",
-    fontSize: 12,
-    marginTop: 4,
-  },
-  labelHighlight: {
-    color: "#ff9800",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-});

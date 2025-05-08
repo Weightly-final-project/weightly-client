@@ -1,15 +1,11 @@
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
-  Dimensions,
   TouchableOpacity,
-  GestureResponderEvent,
-  TouchableWithoutFeedback,
-  Alert,
-  Image,
   RefreshControl,
+  Image,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { Card, Chip, Divider } from "react-native-paper";
@@ -141,21 +137,23 @@ export default function PredictionScreen() {
   }, [predictions]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View className="flex-1 bg-[#121212]">
+      <View className="flex-row items-center justify-between pt-[50px] pb-4 px-4 bg-[#202020]">
         <TouchableOpacity
-          style={styles.backButton}
+          className="w-10 h-10 rounded-full bg-white/10 justify-center items-center"
           onPress={() => router.back()}
         >
           <Icon name="arrow-back" type="material" color="#fff" size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Prediction Details</Text>
-        <View></View>
+        <Text className="text-xl font-bold text-white">Prediction Details</Text>
+        <View />
       </View>
 
-      <Text style={styles.pullToRefreshHint}>Pull down to refresh</Text>
+      <Text className="text-center text-[#999] text-xs py-1 bg-[#202020]">
+        Pull down to refresh
+      </Text>
       <ScrollView
-        style={styles.scrollView}
+        className="flex-1"
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -166,30 +164,31 @@ export default function PredictionScreen() {
           />
         }
       >
-        <View style={styles.imageContainer}>
-          <Image source={{ uri: imageUrl }} style={styles.image} />
-          <View style={styles.pointInstructions}>
-            <Text style={styles.pointInstructionsText}>
+        <View className="relative w-full h-[40%]">
+          <Image
+            source={{ uri: imageUrl }}
+            className="w-full h-full object-cover"
+          />
+          <View className="absolute bottom-0 left-0 right-0 bg-black/70 p-2 items-center">
+            <Text className="text-white text-sm">
               total volume(m3): {(totalVolume / 1000000).toFixed(3)}
             </Text>
-            <Text style={styles.pointInstructionsText}>
+            <Text className="text-white text-sm">
               weight (kg): {(totalVolume * weight_mapping.pine) / 1000}
             </Text>
-            <Text style={styles.pointInstructionsText}>
+            <Text className="text-white text-sm">
               size (cm):{" "}
               {Object.values(avarageSize)
                 .map((item) => item.toFixed(3))
                 .join("X")}
             </Text>
-            <Text style={styles.pointInstructionsText}>
-              wood count: {woodCount}
-            </Text>
+            <Text className="text-white text-sm">wood count: {woodCount}</Text>
           </View>
-          <View style={styles.imageOverlay}>
+          <View className="absolute top-4 right-4">
             <Chip
               icon="image"
-              style={styles.fileChip}
-              textStyle={styles.chipText}
+              className="bg-black/70"
+              textStyle={{ fontSize: 12, color: "white" }}
             >
               {typeof image_s3_uri === "string"
                 ? getFilenameFromS3Uri(image_s3_uri)
@@ -198,38 +197,40 @@ export default function PredictionScreen() {
           </View>
         </View>
 
-        <View style={styles.detailsContainer}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Prediction Information</Text>
+        <View className="p-4">
+          <View className="mb-6">
+            <Text className="text-lg font-bold text-white mb-4">
+              Prediction Information
+            </Text>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>ID:</Text>
-              <Text style={styles.infoValue}>{prediction_id}</Text>
+            <View className="flex-row items-center mb-3">
+              <Text className="w-20 text-sm text-[#999]">ID:</Text>
+              <Text className="flex-1 text-sm text-white">{prediction_id}</Text>
             </View>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>User:</Text>
+            <View className="flex-row items-center mb-3">
+              <Text className="w-20 text-sm text-[#999]">User:</Text>
               <Chip
                 icon="account"
-                style={styles.userChip}
-                textStyle={styles.userChipText}
+                className="bg-[#6200ee]"
+                textStyle={{ color: "white" }}
               >
                 {userId}
               </Chip>
             </View>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Created:</Text>
-              <Text style={styles.infoValue}>
+            <View className="flex-row items-center mb-3">
+              <Text className="w-20 text-sm text-[#999]">Created:</Text>
+              <Text className="flex-1 text-sm text-white">
                 {typeof created_at === "string"
                   ? formatDate(created_at)
                   : "Unknown"}
               </Text>
             </View>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Updated:</Text>
-              <Text style={styles.infoValue}>
+            <View className="flex-row items-center mb-3">
+              <Text className="w-20 text-sm text-[#999]">Updated:</Text>
+              <Text className="flex-1 text-sm text-white">
                 {typeof updated_at === "string"
                   ? formatDate(updated_at)
                   : "Unknown"}
@@ -237,267 +238,59 @@ export default function PredictionScreen() {
             </View>
           </View>
 
-          <Divider style={styles.divider} />
+          <Divider className="bg-[#333] h-px my-4" />
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Storage Information</Text>
+          <View className="mb-6">
+            <Text className="text-lg font-bold text-white mb-4">
+              Storage Information
+            </Text>
 
-            <Card style={styles.storageCard}>
-              <View style={styles.storageCardContent}>
-                <Card.Content>
-                  <Text style={styles.storageLabel}>Image S3 URI:</Text>
-                  <Text style={styles.storageValue} selectable>
-                    {image_s3_uri}
-                  </Text>
-                </Card.Content>
-              </View>
+            <Card className="bg-[#2A2A2A] mb-3 rounded-lg overflow-hidden">
+              <Card.Content>
+                <Text className="text-sm text-[#999] mb-1">Image S3 URI:</Text>
+                <Text
+                  className="text-xs text-white font-mono"
+                  selectable
+                >
+                  {image_s3_uri}
+                </Text>
+              </Card.Content>
             </Card>
 
-            <Card style={styles.storageCard}>
-              <View style={styles.storageCardContent}>
-                <Card.Content>
-                  <Text style={styles.storageLabel}>Annotated S3 URI:</Text>
-                  <Text style={styles.storageValue} selectable>
-                    {annotated_s3_uri}
-                  </Text>
-                </Card.Content>
-              </View>
+            <Card className="bg-[#2A2A2A] mb-3 rounded-lg overflow-hidden">
+              <Card.Content>
+                <Text className="text-sm text-[#999] mb-1">
+                  Annotated S3 URI:
+                </Text>
+                <Text
+                  className="text-xs text-white font-mono"
+                  selectable
+                >
+                  {annotated_s3_uri}
+                </Text>
+              </Card.Content>
             </Card>
           </View>
-          <Divider style={styles.divider} />
+          <Divider className="bg-[#333] h-px my-4" />
 
-          <View style={styles.statusBar}>
-            <Text style={styles.statusText}>{pictureStatus}</Text>
+          <View className="bg-[#202020] p-2 items-center">
+            <Text className="text-[#6200ee] text-sm">{pictureStatus}</Text>
           </View>
 
           {(prediction_id as string).split("_")[0] === "temp" && (
-            <>
-              <TouchableOpacity
-                style={[
-                  styles.actionBtn,
-                  styles.primaryButton,
-                  isProcessing && styles.disabledButton,
-                ]}
-                disabled={isProcessing}
-                onPress={saveResults}
-              >
-                <Icon name="save" type="material" color="white" size={24} />
-                <Text style={styles.actionBtnText}>Save</Text>
-              </TouchableOpacity>
-            </>
+            <TouchableOpacity
+              className={`flex-row items-center justify-center bg-[#6200ee] py-3 px-5 rounded-lg min-w-[100px] ${
+                isProcessing ? "opacity-50" : ""
+              }`}
+              disabled={isProcessing}
+              onPress={saveResults}
+            >
+              <Icon name="save" type="material" color="white" size={24} />
+              <Text className="text-white font-bold ml-2">Save</Text>
+            </TouchableOpacity>
           )}
         </View>
       </ScrollView>
     </View>
   );
 }
-
-const { width, height } = Dimensions.get("window");
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  touchableImageContainer: {
-    position: "relative",
-    flex: 1,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  actionBtn: {
-    backgroundColor: "#333333",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 100,
-  },
-  primaryButton: {
-    backgroundColor: "#6200ee",
-  },
-  actionBtnText: {
-    color: "white",
-    fontWeight: "bold",
-    marginLeft: 8,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  pointMarker: {
-    position: "absolute",
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(98, 0, 238, 0.8)",
-    borderWidth: 2,
-    borderColor: "white",
-    justifyContent: "center",
-    alignItems: "center",
-    transform: [{ translateX: -15 }, { translateY: -15 }],
-  },
-  statusBar: {
-    backgroundColor: "#202020",
-    padding: 8,
-    alignItems: "center",
-  },
-  statusText: {
-    color: "#6200ee",
-    fontSize: 14,
-  },
-  pointNumber: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  pointInstructions: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    padding: 8,
-    alignItems: "center",
-  },
-  pointInstructionsText: {
-    color: "white",
-    fontSize: 14,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    backgroundColor: "#202020",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "white",
-  },
-  shareButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  imageContainer: {
-    position: "relative",
-    width: width,
-    height: height * 0.4,
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  },
-  imageOverlay: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-  },
-  fileChip: {
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-  },
-  chipText: {
-    fontSize: 12,
-    color: "white",
-  },
-  detailsContainer: {
-    padding: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  infoLabel: {
-    width: 80,
-    fontSize: 14,
-    color: "#999",
-  },
-  infoValue: {
-    flex: 1,
-    fontSize: 14,
-    color: "white",
-  },
-  userChip: {
-    backgroundColor: "#6200ee",
-  },
-  userChipText: {
-    color: "white",
-  },
-  divider: {
-    backgroundColor: "#333",
-    height: 1,
-    marginVertical: 16,
-  },
-  storageCard: {
-    backgroundColor: "#2A2A2A",
-    marginBottom: 12,
-    borderRadius: 8,
-  },
-  storageCardContent: {
-    overflow: "hidden",
-    borderRadius: 8,
-  },
-  storageLabel: {
-    fontSize: 14,
-    color: "#999",
-    marginBottom: 4,
-  },
-  storageValue: {
-    fontSize: 12,
-    color: "white",
-    fontFamily: "monospace",
-  },
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 24,
-    marginBottom: 40,
-  },
-  downloadButton: {
-    flex: 1,
-    marginRight: 8,
-    backgroundColor: "#6200ee",
-  },
-  editButton: {
-    flex: 1,
-    marginLeft: 8,
-    borderColor: "#6200ee",
-  },
-  pullToRefreshHint: {
-    textAlign: "center",
-    color: "#999",
-    fontSize: 12,
-    paddingVertical: 4,
-    backgroundColor: "#202020",
-  },
-});

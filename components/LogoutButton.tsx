@@ -1,5 +1,5 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet, Alert } from "react-native";
+import { TouchableOpacity, Text, Alert } from "react-native";
 import { useAuth } from "../utils/AuthContext";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -57,7 +57,8 @@ export default function LogoutButton({
   if (variant === "icon") {
     return (
       <TouchableOpacity
-        style={[styles.iconButton, style]}
+        className="p-2"
+        style={style}
         onPress={handleLogout}
       >
         <Ionicons name="log-out-outline" size={24} color="#fff" />
@@ -68,54 +69,28 @@ export default function LogoutButton({
   if (variant === "text") {
     return (
       <TouchableOpacity
-        style={[styles.textButton, style]}
+        className="p-2"
+        style={style}
         onPress={handleLogout}
       >
-        <Text style={styles.textButtonText}>Logout</Text>
+        <Text className="text-[#d32f2f] text-base font-bold">Logout</Text>
       </TouchableOpacity>
     );
   }
 
   return (
-    <TouchableOpacity style={[styles.button, style]} onPress={handleLogout}>
+    <TouchableOpacity 
+      className="bg-[#d32f2f] rounded-lg h-[45px] px-4 flex-row justify-center items-center"
+      style={style} 
+      onPress={handleLogout}
+    >
       <Ionicons
         name="log-out-outline"
         size={20}
         color="#fff"
-        style={styles.icon}
+        className="mr-2"
       />
-      <Text style={styles.buttonText}>Logout</Text>
+      <Text className="text-white text-base font-bold">Logout</Text>
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    backgroundColor: "#d32f2f",
-    borderRadius: 8,
-    height: 45,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  icon: {
-    marginRight: 8,
-  },
-  iconButton: {
-    padding: 8,
-  },
-  textButton: {
-    padding: 8,
-  },
-  textButtonText: {
-    color: "#d32f2f",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-});

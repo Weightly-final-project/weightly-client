@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Image, PanResponder, StyleSheet, Dimensions } from 'react-native';
+import { View, Image, PanResponder } from 'react-native';
 
 interface ManualBoundingBoxProps {
   imageUri: string;
@@ -51,26 +51,24 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
 
     return (
       <View
-        style={[
-          styles.box,
-          {
-            left,
-            top,
-            width,
-            height,
-          },
-        ]}
+        className="absolute border-2 border-[#00ff00] bg-[#00ff00]/10"
+        style={{
+          left,
+          top,
+          width,
+          height,
+        }}
       />
     );
   };
 
   return (
-    <View style={styles.container}>
-      <View {...panResponder.panHandlers} style={styles.imageContainer}>
+    <View className="flex-1 bg-black">
+      <View {...panResponder.panHandlers} className="flex-1 relative">
         <Image
           ref={imageRef}
           source={{ uri: imageUri }}
-          style={styles.image}
+          className="flex-1 w-full h-full"
           resizeMode="contain"
           onLayout={(event) => {
             const { width, height } = event.nativeEvent.layout;
@@ -82,25 +80,3 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
-  imageContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  image: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  box: {
-    position: 'absolute',
-    borderWidth: 2,
-    borderColor: '#00ff00',
-    backgroundColor: 'rgba(0, 255, 0, 0.1)',
-  },
-}); 

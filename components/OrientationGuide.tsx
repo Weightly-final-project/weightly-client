@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import { DeviceMotion } from 'expo-sensors';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -60,40 +60,19 @@ export const OrientationGuide: React.FC<OrientationGuideProps> = ({ onOrientatio
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[
-        styles.indicator,
-        {
-          backgroundColor: Math.abs(mode === 'top-down' ? beta - 90 : beta) < 15 
-            ? 'rgba(76, 175, 80, 0.8)' 
-            : 'rgba(244, 67, 54, 0.8)'
-        }
-      ]}>
+    <View className="items-center">
+      <View className={`flex-row items-center p-3 rounded-lg gap-2 ${
+        Math.abs(mode === 'top-down' ? beta - 90 : beta) < 15 
+          ? 'bg-green-500/80' 
+          : 'bg-red-500/80'
+      }`}>
         <MaterialCommunityIcons 
           name={mode === 'top-down' ? 'arrow-down' : 'camera'} 
           size={24} 
           color="white" 
         />
-        <Text style={styles.text}>{getGuideMessage()}</Text>
+        <Text className="text-white text-base font-semibold">{getGuideMessage()}</Text>
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-  },
-  indicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  text: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-}); 

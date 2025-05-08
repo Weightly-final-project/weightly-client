@@ -51,9 +51,9 @@ function AppNavigator() {
   // 3) Show loading indicator until we’re fully ready
   if (isLoading || !appReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#121212", justifyContent: "center", alignItems: "center" }}>
+      <View className="flex-1 bg-[#121212] justify-center items-center">
         <ActivityIndicator size="large" color="#6200ee" />
-        <Text style={{ color: "#fff", marginTop: 12 }}>
+        <Text className="text-white mt-3">
           {isLoading ? "Checking authentication…" : "Preparing app…"}
         </Text>
       </View>
@@ -76,3 +76,4 @@ function AppNavigator() {
     </Stack>
   );
 }
+
