@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, Dimensions, Alert } from "react-native";
+import { View, Text, Alert } from "react-native";
 import { Card, Chip, Button } from "react-native-paper";
 import { Link } from "expo-router";
 import { Buffer } from "buffer";
-import { getFilenameFromS3Uri, formatDate } from "@/utils/functions";
-import { hooks } from "@/utils/api";
-import { useAuth } from "@/utils/AuthContext";
+import { getFilenameFromS3Uri, formatDate } from "../utils/functions";
+import { hooks } from "../utils/api";
+import { useAuth } from "../utils/AuthContext";
 
 const { useDynmo_deleteMutation } = hooks;
 
@@ -65,45 +65,45 @@ const PredictionItem = ({ item, onPress, onDelete }: PredictionItemProps) => {
   };
 
   return (
-    <Card style={styles.card} mode="elevated">
-      <View style={styles.cardContentWrapper}>
-        <Card.Cover source={{ uri: imageUrl }} style={styles.cardImage} />
+    <Card className="mx-4 my-2 rounded-xl bg-[#202020]" mode="elevated">
+      <View className="overflow-hidden rounded-xl">
+        <Card.Cover source={{ uri: imageUrl }} className="h-[180px] rounded-t-xl" />
 
-        <View style={styles.overlay}>
+        <View className="absolute top-3 right-3">
           <Chip
             icon="image"
-            style={styles.fileChip}
-            textStyle={styles.chipText}
+            className="bg-black/70"
+            textStyle={{ fontSize: 12, color: 'white' }}
           >
             {getFilenameFromS3Uri(item.annotated_s3_uri)}
           </Chip>
         </View>
 
-        <Card.Content style={styles.content}>
-          <View style={styles.header}>
-            <View style={styles.idContainer}>
-              <Text style={styles.idLabel}>ID:</Text>
-              <Text style={styles.id}>{item.prediction_id}</Text>
+        <Card.Content className="py-4">
+          <View className="flex-row justify-between items-center mb-3">
+            <View className="flex-row items-center">
+              <Text className="text-sm font-bold text-[#AAA] mr-1">ID:</Text>
+              <Text className="text-sm text-[#DDD] font-mono">{item.prediction_id}</Text>
             </View>
           </View>
 
-          <View style={styles.dateContainer}>
-            <Text style={styles.idLabel}>User:</Text>
+          <View className="flex-row items-center mb-4">
+            <Text className="text-sm font-bold text-[#AAA] mr-1">User:</Text>
             <Chip
               icon="account"
-              style={styles.userChip}
-              textStyle={styles.chipText}
+              className="bg-[#6200ee]"
+              textStyle={{ fontSize: 12, color: 'white' }}
             >
               {item.user}
             </Chip>
           </View>
 
-          <View style={styles.dateContainer}>
-            <Text style={styles.dateLabel}>Created:</Text>
-            <Text style={styles.date}>{formatDate(item.created_at)}</Text>
+          <View className="flex-row items-center mb-4">
+            <Text className="text-sm font-bold text-[#AAA] mr-1">Created:</Text>
+            <Text className="text-sm text-[#DDD]">{formatDate(item.created_at)}</Text>
           </View>
 
-          <View style={styles.footer}>
+          <View className="flex-row justify-between mt-2 gap-2">
             <Link
               href={{
                 pathname: "/prediction",
@@ -113,11 +113,12 @@ const PredictionItem = ({ item, onPress, onDelete }: PredictionItemProps) => {
                 },
               }}
               asChild
+              className="flex-1"
             >
               <Button
                 mode="contained"
                 onPress={onPress}
-                style={styles.viewButton}
+                className="bg-[#6200ee] flex-1"
                 icon="eye"
               >
                 View Details
@@ -126,7 +127,7 @@ const PredictionItem = ({ item, onPress, onDelete }: PredictionItemProps) => {
             <Button
               mode="contained"
               onPress={handleDelete}
-              style={styles.deleteButton}
+              className="bg-[#dc3545] flex-1"
               icon="delete"
             >
               Delete
@@ -137,92 +138,5 @@ const PredictionItem = ({ item, onPress, onDelete }: PredictionItemProps) => {
     </Card>
   );
 };
-
-const styles = StyleSheet.create({
-  card: {
-    marginVertical: 8,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    elevation: 4,
-    backgroundColor: "#202020",
-  },
-  cardContentWrapper: {
-    overflow: "hidden",
-    borderRadius: 12,
-  },
-  cardImage: {
-    height: 180,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  overlay: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-  },
-  fileChip: {
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-  },
-  chipText: {
-    fontSize: 12,
-    color: "white",
-  },
-  content: {
-    paddingVertical: 16,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  idContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  idLabel: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#AAA",
-    marginRight: 4,
-  },
-  id: {
-    fontSize: 14,
-    color: "#DDD",
-    fontFamily: "monospace",
-  },
-  userChip: {
-    backgroundColor: "#6200ee",
-  },
-  dateContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  dateLabel: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#AAA",
-    marginRight: 4,
-  },
-  date: {
-    fontSize: 14,
-    color: "#DDD",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
-    gap: 8,
-  },
-  viewButton: {
-    flex: 1,
-    backgroundColor: "#6200ee",
-  },
-  deleteButton: {
-    flex: 1,
-    backgroundColor: "#dc3545",
-  },
-});
 
 export default PredictionItem;

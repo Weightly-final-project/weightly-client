@@ -114,7 +114,7 @@ const fetchApi = async <T extends EndpointKeys>(
       method: API[endpoint].method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-      signal: controller.signal,
+      signal: controller.signal as AbortSignal,
     });
   } else if (API[endpoint].method === "DELETE") {
     response = await fetch(`${API[endpoint].url}`, {

@@ -9,11 +9,11 @@ import {
 } from "react-native";
 import { Link } from "expo-router";
 import React, { useEffect, useState, useCallback } from "react";
-import { hooks, ResponseType } from "@/utils/api";
+import { hooks, ResponseType } from "../utils/api";
 import { ActivityIndicator, Button } from "react-native-paper";
 import PredictionItem from "../components/prediction-card";
 import AppHeader from "../components/AppHeader";
-import { getFiles } from "@/utils/s3";
+import { getFiles } from "../utils/s3";
 import { useAuth } from "../utils/AuthContext";
 const { useDynmo_getMutation } = hooks;
 
