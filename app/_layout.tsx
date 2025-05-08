@@ -3,6 +3,8 @@ import { View, ActivityIndicator, Text } from "react-native";
 import { Stack, SplashScreen, useRouter, useSegments } from "expo-router";
 import { AuthProvider, useAuth } from "../utils/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { UserContext, UserContextProvider } from "@/utils/UserContext";
+import { CameraCapturedPicture } from "expo-camera";
 
 // keep splash on until we call hideAsync
 SplashScreen.preventAutoHideAsync();
@@ -13,7 +15,9 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <UserContextProvider value={{ capturedPhotos: [] }}>
         <AppNavigator />
+        </UserContextProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
