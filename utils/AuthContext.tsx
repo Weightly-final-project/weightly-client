@@ -128,7 +128,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handleSignIn = async (username: string, password: string): Promise<any> => {
     setIsLoading(true);
-    return new Promise((resolve, reject) => {
+    
+    try {
+      debugLog('Attempting sign in...');
+      
       const authenticationDetails = new AuthenticationDetails({
         Username: username,
         Password: password,
@@ -139,51 +142,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         Pool: userPool,
       });
 
-      cognitoUser.authenticateUser(authenticationDetails, {
-        onSuccess: (session) => {
-          debugLog('Sign in successful:', session);
-          cognitoUser.getUserAttributes((err: any, attributes: any) => {
-            if (err) {
-              debugLog('Error getting user attributes:', err);
-              reject(err);
-            } else {
-              const userData = {
-                username: cognitoUser.getUsername(),
-                attributes: attributes.reduce((acc: any, attr: any) => {
-                  acc[attr.Name] = attr.Value;
-                  return acc;
-                }, {})
-              };
-              setIsAuthenticated(true);
-              setUser(userData);
-              resolve(userData);
-            }
-          });
-        },
-        onFailure: (err) => {
-          debugLog('Sign in failed:', err);
-          reject(err);
-        },
-        newPasswordRequired: (userAttributes, requiredAttributes) => {
-          debugLog('New password required');
-          reject(new Error('New password required'));
-        },
-        mfaRequired: (challengeName, challengeParameters) => {
-          debugLog('MFA required');
-          reject(new Error('MFA required'));
-        },
-        totpRequired: (challengeName, challengeParameters) => {
-          debugLog('TOTP required');
-          reject(new Error('TOTP required'));
-        },
-        selectMFAType: (challengeName, challengeParameters) => {
-          debugLog('Select MFA type');
-          reject(new Error('Select MFA type'));
-        },
+      // Convert callback-based API to Promise to make it easier to handle
+      const userData = await new Promise<any>((resolve, reject) => {
+        cognitoUser.authenticateUser(authenticationDetails, {
+          onSuccess: (session) => {
+            debugLog('Sign in successful:', session);
+            cognitoUser.getUserAttributes((err: any, attributes: any) => {
+              if (err) {
+                debugLog('Error getting user attributes:', err);
+                reject(err);
+              } else {
+                const userData = {
+                  username: cognitoUser.getUsername(),
+                  attributes: attributes.reduce((acc: any, attr: any) => {
+                    acc[attr.Name] = attr.Value;
+                    return acc;
+                  }, {})
+                };
+                resolve(userData);
+              }
+            });
+          },
+          onFailure: (err) => {
+            debugLog('Sign in failed:', err);
+            reject(err);
+          },
+          newPasswordRequired: (userAttributes, requiredAttributes) => {
+            debugLog('New password required');
+            reject(new Error('New password required'));
+          },
+          mfaRequired: (challengeName, challengeParameters) => {
+            debugLog('MFA required');
+            reject(new Error('MFA required'));
+          },
+          totpRequired: (challengeName, challengeParameters) => {
+            debugLog('TOTP required');
+            reject(new Error('TOTP required'));
+          },
+          selectMFAType: (challengeName, challengeParameters) => {
+            debugLog('Select MFA type');
+            reject(new Error('Select MFA type'));
+          },
+        });
       });
-    }).finally(() => {
+
+      // Update authentication state forcefully
+      debugLog('Auth successful, updating state synchronously');
+      
+      // Set the user and isAuthenticated in a single batched update if possible
+      // to minimize re-renders and ensure state coherence
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      // Update local storage too in case there's a persistence issue
+      try {
+        await AsyncStorage.setItem('authenticated', 'true');
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+      } catch (storageError) {
+        debugLog('Warning: Could not save auth state to storage', storageError);
+      }
+      
+      // Complete the login process
       setIsLoading(false);
-    });
+      debugLog('Authentication state update complete');
+      
+      debugLog('Authentication complete, returning userData');
+      return userData;
+    } catch (error) {
+      debugLog('Sign in error:', error);
+      setIsLoading(false);
+      throw error;
+    }
   };
 
   const handleSignOut = async (): Promise<void> => {

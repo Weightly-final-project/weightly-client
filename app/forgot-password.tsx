@@ -262,4 +262,7 @@ const styles = StyleSheet.create({
     color: "#6200ee",
     fontSize: 14,
   },
+  loginLink: {
+    alignItems: "center",
+  },
 });

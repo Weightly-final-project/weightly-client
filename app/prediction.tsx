@@ -10,32 +10,65 @@ import {
   Alert,
   Image,
   RefreshControl,
+  FlatList,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { Card, Chip, Divider } from "react-native-paper";
-import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { hooks } from "@/utils/api";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { hooks } from "../utils/api";
 import { Icon } from "react-native-elements";
 import { Buffer } from "buffer";
-import weight_mapping from "@/utils/weight_mapping";
+import weight_mapping from "../utils/weight_mapping";
 import {
   getFilenameFromS3Uri,
   formatDate,
   totalVolumeCalculator,
   avarageSizeCalculator,
-} from "@/utils/functions";
-import { useAuth } from "@/utils/AuthContext";
+} from "../utils/functions";
+import { useAuth } from "../utils/AuthContext";
 
 const { useDynmo_createMutation } = hooks;
+
+// Utility function to convert S3 URIs to HTTPS URLs
+const getProperImageUrl = (uri: string | null | undefined): string | null => {
+  if (!uri) return null;
+  
+  // Check if it's an S3 URI
+  if (uri.startsWith('s3://')) {
+    // Convert s3://bucket/key to https://bucket.s3.amazonaws.com/key
+    const withoutProtocol = uri.substring(5); // Remove 's3://'
+    const parts = withoutProtocol.split('/');
+    const bucket = parts[0];
+    const key = parts.slice(1).join('/');
+    return `https://${bucket}.s3.amazonaws.com/${key}`;
+  }
+  
+  // If it's already an HTTP URL, return as is
+  return uri;
+};
 
 export default function PredictionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const dynamoCreateMutation = useDynmo_createMutation();
-  const { user } = useAuth();
-  const userId = user?.username || "guest";
+  const { user, isLoading: authLoading } = useAuth();
+  const userId = useMemo(() => {
+    return authLoading ? "loading" : (user?.username || "guest");
+  }, [authLoading, user]);
+
+  // Use refs to track initialization and prevent infinite loops
+  const isInitialized = useRef(false);
 
   const { item, predictions } = params;
+  const itemData = useMemo(() => {
+    try {
+      return JSON.parse(Buffer.from(item as string, "base64").toString("utf-8"));
+    } catch (error) {
+      console.error("Failed to parse item data:", error);
+      return { photos: [] };
+    }
+  }, [item]);
+  
   const {
     prediction_id,
     created_at,
@@ -44,19 +77,26 @@ export default function PredictionScreen() {
     annotated_s3_uri,
     download_image_s3_uri,
     download_annotated_s3_uri,
-  } = JSON.parse(Buffer.from(item as string, "base64").toString("utf-8"));
-  const imageUrl = download_annotated_s3_uri as string;
-
-  const parsedPredictions = useMemo(
-    () =>
-      predictions
+    photos = [], // Include photos array
+  } = itemData;
+  
+  // State for image carousel
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  
+  // Parse the predictions and get all dimensions
+  const parsedPredictions = useMemo(() => {
+    try {
+      return predictions
         ? JSON.parse(predictions as string)?.filter(
             (item: any) => item.class === "pine"
-          )
-        : [],
-    [predictions]
-  );
-  console.log(parsedPredictions);
+          ) || []
+        : [];
+    } catch (error) {
+      console.error("Failed to parse predictions:", error);
+      return [];
+    }
+  }, [predictions]);
+  
   const woodCount = useMemo(() => {
     return parsedPredictions.length;
   }, [parsedPredictions]);
@@ -74,6 +114,92 @@ export default function PredictionScreen() {
     length_cm: 0.0,
   });
   const [refreshing, setRefreshing] = useState(false);
+
+  // Determine which image to show based on active index and convert S3 URIs
+  const activeImage = useMemo(() => {
+    let imageUri;
+    
+    if (photos && photos.length > 0 && activePhotoIndex < photos.length) {
+      imageUri = photos[activePhotoIndex].download_annotated_s3_uri || 
+                photos[activePhotoIndex].annotated_s3_uri;
+    }
+    
+    if (!imageUri) {
+      imageUri = download_annotated_s3_uri;
+    }
+    
+    // Convert S3 URI to proper HTTPS URL
+    return getProperImageUrl(imageUri);
+  }, [photos, activePhotoIndex, download_annotated_s3_uri]);
+
+  // Log user once when component mounts or auth state changes
+  useEffect(() => {
+    if (!authLoading) {
+      console.log("Prediction screen using user:", userId);
+    }
+  }, [authLoading, userId]);
+
+  // Improved size calculation that prioritizes non-zero values from predictions
+  const calculateSizes = useCallback(() => {
+    if (!parsedPredictions || parsedPredictions.length === 0) return;
+    
+    // Calculate total volume (use existing utility)
+    const newTotalVolume = totalVolumeCalculator(parsedPredictions);
+    
+    // Best estimates from the predictions
+    let bestWidth = 0;
+    let bestHeight = 0;
+    let bestLength = 0;
+    
+    // Extract best measurements, prioritizing non-zero values
+    parsedPredictions.forEach((prediction: any) => {
+      if (prediction.width_cm && prediction.width_cm > bestWidth) {
+        bestWidth = prediction.width_cm;
+      }
+      if (prediction.height_cm && prediction.height_cm > bestHeight) {
+        bestHeight = prediction.height_cm;
+      }
+      if (prediction.length_cm && prediction.length_cm > bestLength) {
+        bestLength = prediction.length_cm;
+      }
+    });
+    
+    // If we have two images, use them to improve dimension calculation
+    if (photos && photos.length >= 2) {
+      // Top-down view provides best width and height
+      const topDownPreds = photos[0]?.predictions || [];
+      // Horizontal view provides best depth/length
+      const horizontalPreds = photos[1]?.predictions || [];
+      
+      // Extract measurements from top-down view (if available)
+      topDownPreds.forEach((pred: any) => {
+        if (pred.width_cm && pred.width_cm > 0) bestWidth = pred.width_cm;
+        if (pred.height_cm && pred.height_cm > 0) bestHeight = pred.height_cm;
+      });
+      
+      // Extract measurements from horizontal view (if available)
+      horizontalPreds.forEach((pred: any) => {
+        if (pred.length_cm && pred.length_cm > 0) bestLength = pred.length_cm;
+      });
+    }
+    
+    // Update state with batched updates to prevent excessive re-renders
+    setTotalVolume(newTotalVolume);
+    setAvarageSize({
+      width_cm: bestWidth || 0,
+      height_cm: bestHeight || 0,
+      length_cm: bestLength || 0,
+    });
+  }, [parsedPredictions, photos]);
+
+  // Run calculations only once on mount and when dependencies change
+  useEffect(() => {
+    // Only calculate sizes if not already initialized or during a refresh
+    if (!isInitialized.current || refreshing) {
+      calculateSizes();
+      isInitialized.current = true;
+    }
+  }, [calculateSizes, refreshing]);
 
   const saveResults = async () => {
     try {
@@ -105,6 +231,7 @@ export default function PredictionScreen() {
               annotated_s3_uri: annotated_s3_uri,
               download_image_s3_uri: download_image_s3_uri,
               download_annotated_s3_uri: download_annotated_s3_uri,
+              photos: photos, // Keep the photos array
             })
           ).toString("base64"),
           predictions: predictions,
@@ -124,21 +251,17 @@ export default function PredictionScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-
-    // Reload all data
-    setTotalVolume(totalVolumeCalculator(parsedPredictions));
-    setAvarageSize(avarageSizeCalculator(parsedPredictions));
-
-    // Simulate a delay for the refresh animation
+    calculateSizes(); // Use our improved calculation
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);
-  }, [parsedPredictions]);
+  }, [calculateSizes]);
 
-  useEffect(() => {
-    setTotalVolume(totalVolumeCalculator(parsedPredictions));
-    setAvarageSize(avarageSizeCalculator(parsedPredictions));
-  }, [predictions]);
+  // Function to format size as cm (with fallback)
+  const formatSize = (value: number) => {
+    if (!value || value <= 0) return "N/A";
+    return `${value.toFixed(2)} cm`;
+  };
 
   return (
     <View style={styles.container}>
@@ -166,25 +289,95 @@ export default function PredictionScreen() {
           />
         }
       >
+        {/* Photo Selector */}
+        {photos && photos.length > 1 && (
+          <View style={styles.photoSelector}>
+            <TouchableOpacity
+              style={[
+                styles.photoSelectorButton,
+                activePhotoIndex === 0 ? styles.activePhotoButton : {}
+              ]}
+              onPress={() => setActivePhotoIndex(0)}
+            >
+              <Text style={styles.photoButtonText}>Top-Down View</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.photoSelectorButton,
+                activePhotoIndex === 1 ? styles.activePhotoButton : {}
+              ]}
+              onPress={() => setActivePhotoIndex(1)}
+            >
+              <Text style={styles.photoButtonText}>Horizontal View</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      
+        {/* Main Image */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: imageUrl }} style={styles.image} />
-          <View style={styles.pointInstructions}>
-            <Text style={styles.pointInstructionsText}>
-              total volume(m3): {(totalVolume / 1000000).toFixed(3)}
-            </Text>
-            <Text style={styles.pointInstructionsText}>
-              weight (kg): {(totalVolume * weight_mapping.pine) / 1000}
-            </Text>
-            <Text style={styles.pointInstructionsText}>
-              size (cm):{" "}
-              {Object.values(avarageSize)
-                .map((item) => item.toFixed(3))
-                .join("X")}
-            </Text>
-            <Text style={styles.pointInstructionsText}>
-              wood count: {woodCount}
+          {activeImage ? (
+            <Image 
+              source={{ uri: activeImage }} 
+              style={styles.image} 
+              resizeMode="contain"
+              onError={(e) => console.error("Image loading error:", e.nativeEvent.error)}
+            />
+          ) : (
+            <View style={[styles.image, styles.imagePlaceholder]}>
+              <Text style={styles.imagePlaceholderText}>No image available</Text>
+            </View>
+          )}
+          
+          {/* Current image label */}
+          <View style={styles.imageTypeOverlay}>
+            <Text style={styles.imageTypeText}>
+              {activePhotoIndex === 0 ? "Top-Down View" : "Horizontal View"}
             </Text>
           </View>
+          
+          {/* Dimensions overlay */}
+          <View style={styles.pointInstructions}>
+            <Text style={styles.dimensionTitle}>Object Dimensions:</Text>
+            
+            <View style={styles.dimensionsGrid}>
+              <View style={styles.dimensionItem}>
+                <Text style={styles.dimensionLabel}>Width:</Text>
+                <Text style={styles.dimensionValue}>{formatSize(avarageSize.width_cm)}</Text>
+              </View>
+              
+              <View style={styles.dimensionItem}>
+                <Text style={styles.dimensionLabel}>Height:</Text>
+                <Text style={styles.dimensionValue}>{formatSize(avarageSize.height_cm)}</Text>
+              </View>
+              
+              <View style={styles.dimensionItem}>
+                <Text style={styles.dimensionLabel}>Length:</Text>
+                <Text style={styles.dimensionValue}>{formatSize(avarageSize.length_cm)}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.dimensionsRow}>
+              <View style={styles.dimensionItem}>
+                <Text style={styles.dimensionLabel}>Volume:</Text>
+                <Text style={styles.dimensionValue}>
+                  {totalVolume > 0 ? `${(totalVolume / 1000000).toFixed(3)} m³` : "N/A"}
+                </Text>
+              </View>
+              
+              <View style={styles.dimensionItem}>
+                <Text style={styles.dimensionLabel}>Weight:</Text>
+                <Text style={styles.dimensionValue}>
+                  {totalVolume > 0 ? `${(totalVolume * weight_mapping.pine / 1000).toFixed(2)} kg` : "N/A"}
+                </Text>
+              </View>
+              
+              <View style={styles.dimensionItem}>
+                <Text style={styles.dimensionLabel}>Count:</Text>
+                <Text style={styles.dimensionValue}>{woodCount}</Text>
+              </View>
+            </View>
+          </View>
+          
           <View style={styles.imageOverlay}>
             <Chip
               icon="image"
@@ -197,7 +390,7 @@ export default function PredictionScreen() {
             </Chip>
           </View>
         </View>
-
+        
         <View style={styles.detailsContainer}>
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Prediction Information</Text>
@@ -270,7 +463,7 @@ export default function PredictionScreen() {
             <Text style={styles.statusText}>{pictureStatus}</Text>
           </View>
 
-          {(prediction_id as string).split("_")[0] === "temp" && (
+          {(prediction_id as string)?.split("_")[0] === "temp" && (
             <>
               <TouchableOpacity
                 style={[
@@ -357,8 +550,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    padding: 8,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    padding: 12,
     alignItems: "center",
   },
   pointInstructionsText: {
@@ -406,7 +599,16 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
-    objectFit: "cover",
+    objectFit: "contain",
+    backgroundColor: "#1A1A1A",
+  },
+  imagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePlaceholderText: {
+    color: '#666',
+    fontSize: 16,
   },
   imageOverlay: {
     position: "absolute",
@@ -499,5 +701,69 @@ const styles = StyleSheet.create({
     fontSize: 12,
     paddingVertical: 4,
     backgroundColor: "#202020",
+  },
+  photoSelector: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#202020",
+  },
+  photoSelectorButton: {
+    flex: 1,
+    padding: 10,
+    margin: 4,
+    borderRadius: 8,
+    backgroundColor: "#333",
+    alignItems: "center",
+  },
+  activePhotoButton: {
+    backgroundColor: "#6200ee",
+  },
+  photoButtonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  imageTypeOverlay: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    padding: 8,
+    borderRadius: 4,
+  },
+  imageTypeText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  dimensionTitle: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  dimensionsGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 8,
+  },
+  dimensionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  dimensionItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  dimensionLabel: {
+    color: "#999",
+    fontSize: 12,
+  },
+  dimensionValue: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "bold",
   },
 });

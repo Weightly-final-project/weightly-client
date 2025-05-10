@@ -3,6 +3,8 @@ import { View, ActivityIndicator, Text } from "react-native";
 import { Stack, SplashScreen, useRouter, useSegments } from "expo-router";
 import { AuthProvider, useAuth } from "../utils/AuthContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { StyleSheet } from "react-native";
 
 // keep splash on until we call hideAsync
 SplashScreen.preventAutoHideAsync();
@@ -11,11 +13,13 @@ const queryClient = new QueryClient();
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AppNavigator />
-      </AuthProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={styles.container}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AppNavigator />
+        </AuthProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -24,6 +28,7 @@ function AppNavigator() {
   const segments = useSegments();
   const { isLoading, isAuthenticated } = useAuth();
   const [appReady, setAppReady] = useState(false);
+  const [lastNavigation, setLastNavigation] = useState("");
 
   // 1) Wait for auth to load, then hide splash and mark ready
   useEffect(() => {
@@ -34,19 +39,40 @@ function AppNavigator() {
     })();
   }, [isLoading]);
 
-  // 2) Once ready, perform redirect logic
+  // 2) Handle routing once auth state is loaded and app is ready
   useEffect(() => {
-    if (!appReady) return;
-    const inAuthGroup = segments[0] === "(auth)";
-
-    if (!isAuthenticated && !inAuthGroup) {
-      router.replace("/(auth)/login");
-    } else if (isAuthenticated && inAuthGroup) {
+    // Don't do anything until app is ready and auth state is loaded
+    if (!appReady || isLoading) return;
+    
+    // Get the current path
+    const currentSegment = segments[0];
+    const navKey = `${isAuthenticated}-${currentSegment}`;
+    
+    // Skip if we've already processed this exact navigation state
+    if (navKey === lastNavigation) return;
+    
+    console.log("App navigator: routing check - authenticated:", isAuthenticated, "path:", currentSegment);
+    
+    // Auth screens
+    const authScreens = ["login", "signup", "forgot-password"];
+    const isAuthScreen = authScreens.includes(currentSegment || "");
+    
+    // Determine if we need to redirect
+    if (!isAuthenticated && !isAuthScreen) {
+      console.log("Not authenticated and not on auth screen, redirecting to login");
+      setLastNavigation(navKey);
+      router.replace("/login");
+    } else if (isAuthenticated && isAuthScreen) {
+      console.log("Authenticated but on auth screen, redirecting to home");
+      setLastNavigation(navKey);
       router.replace("/");
+    } else {
+      // No navigation needed, but update the last navigation to prevent rechecking
+      setLastNavigation(navKey);
     }
-  }, [appReady, isAuthenticated, segments, router]);
+  }, [appReady, isLoading, isAuthenticated, segments, router, lastNavigation]);
 
-  // 3) Show loading indicator until we’re fully ready
+  // 3) Show loading indicator until we're fully ready
   if (isLoading || !appReady) {
     return (
       <View style={{ flex: 1, backgroundColor: "#121212", justifyContent: "center", alignItems: "center" }}>
@@ -58,7 +84,7 @@ function AppNavigator() {
     );
   }
 
-  // 4) Now that we’re ready, render your Stack
+  // 4) Now that we're ready, render your Stack
   return (
     <Stack
       screenOptions={{
@@ -74,3 +100,9 @@ function AppNavigator() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});

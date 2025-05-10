@@ -24,10 +24,10 @@ import { uploadFile } from "../utils/s3";
 import { hooks } from "../utils/api";
 import Permission from "../components/Permission";
 import { Buffer } from "buffer";
-import { bigBboxCalculator } from "@/utils/functions";
+import { bigBboxCalculator } from "../utils/functions";
 import CameraControls from "../components/CameraControls";
 import AppHeader from "../components/AppHeader";
-import { useAuth } from "@/utils/AuthContext";
+import { useAuth } from "../utils/AuthContext";
 import { ManualBoundingBox } from "../components/ManualBoundingBox";
 import { OrientationGuide } from "../components/OrientationGuide";
 
@@ -38,26 +38,26 @@ const {
   useReference_calculatorMutation,
 } = hooks;
 
-const responseExample = {
-  image_s3_uri: String(),
-  annotated_s3_uri: String(),
-  predictions: [] as readonly any[],
-};
-
-type anototatedImageType = typeof responseExample;
-
 type PhotoMode = 'top-down' | 'horizontal';
 
 interface CapturedPhoto {
   photo: CameraCapturedPicture;
   processed?: boolean;
-  annotatedImage?: anototatedImageType;
+  annotatedImage?: {
+    image_s3_uri: string;
+    annotated_s3_uri: string;
+    predictions: any[];
+  };
 }
 
 interface PhotoToProcess {
   photo: CameraCapturedPicture | undefined;
   processed?: boolean;
-  annotatedImage?: anototatedImageType;
+  annotatedImage?: {
+    image_s3_uri: string;
+    annotated_s3_uri: string;
+    predictions: any[];
+  };
 }
 
 export default function CameraScreen() {
@@ -90,10 +90,21 @@ export default function CameraScreen() {
   };
 
   useEffect(() => {
-    // Reset photos when mode changes
-    setCapturedPhotos([]);
-    setCurrentPhotoIndex(0);
+    // Only reset photos if we're starting fresh
+    if (capturedPhotos.length === 0) {
+      setCurrentPhotoIndex(0);
+    }
   }, [mode]);
+
+  const handleModeChange = (newMode: PhotoMode) => {
+    if (mode !== newMode) {
+      setMode(newMode);
+      // Only reset if we haven't taken any photos yet
+      if (capturedPhotos.length === 0) {
+        setCurrentPhotoIndex(0);
+      }
+    }
+  };
 
   if (!permission || !permission.granted) {
     return (
@@ -112,22 +123,9 @@ export default function CameraScreen() {
     if (!lastPhoto?.annotatedImage?.image_s3_uri || !lastPhoto?.annotatedImage?.annotated_s3_uri) return;
 
     router.replace({
-      pathname: "/prediction",
+      pathname: "/confirm-photos",
       params: {
-        item: Buffer.from(
-          JSON.stringify({
-            prediction_id: `temp_prediction_${Date.now()}`,
-            user: userId,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            image_s3_uri: lastPhoto.annotatedImage.image_s3_uri,
-            annotated_s3_uri: lastPhoto.annotatedImage.annotated_s3_uri,
-            photos: processedPhotos.map(p => ({
-              image_s3_uri: p.annotatedImage?.image_s3_uri,
-              annotated_s3_uri: p.annotatedImage?.annotated_s3_uri,
-            })),
-          })
-        ).toString("base64"),
+        photos: Buffer.from(JSON.stringify(processedPhotos)).toString("base64"),
         predictions: JSON.stringify(lastPhoto.annotatedImage.predictions),
       },
     });
@@ -178,13 +176,17 @@ export default function CameraScreen() {
 
         if (currentPhotoIndex + 1 < requiredPhotos) {
           setCurrentPhotoIndex(currentPhotoIndex + 1);
+          setIsProcessing(false);
         } else {
+          setPictureStatus("Preparing results...");
+          // Navigate to confirmation page immediately
           navigateToPrediction(updatedPhotos);
         }
-      }
 
-      setShowManualBoundingBox(false);
-      setIsProcessing(false);
+        setShowManualBoundingBox(false);
+      } else {
+        throw new Error("Failed to generate annotated image");
+      }
     } catch (error) {
       console.error(error);
       setPictureStatus("Error processing manual selection");
@@ -236,88 +238,111 @@ export default function CameraScreen() {
 
       setPictureStatus("Analyzing objects...");
 
+      // Log detection information for debugging
+      console.log('Detection status:', {
+        photoIndex: currentPhotoIndex, 
+        foundPredictions: parsedPredictions && parsedPredictions.length > 0,
+        foundBbox: !!bbox,
+        hasReferenceObject: !!reference_object,
+        referenceObjectBbox: reference_object?.bbox,
+      });
+
       if (
         parsedPredictions &&
         bbox &&
         reference_prediction.predictions &&
-        reference_prediction.predictions.length > 0
+        reference_prediction.predictions.length > 0 &&
+        reference_object &&
+        Array.isArray(reference_object.bbox) &&
+        reference_object.bbox.length === 4 &&
+        reference_object.bbox.every((v: any) => typeof v === 'number')
       ) {
-        const predictions_with_size = await referenceCalculatorMutation.mutateAsync({
-          predictions: [
-            {
-              bbox: Object.values(bbox),
-              object: "pine",
-              confidence: 0.99,
-            },
-          ],
-          reference_width_cm: 5.8,
-          reference_width_px: reference_object?.bbox[2] - reference_object?.bbox[0],
-          focal_length_px: 10,
-          reference_height_px: reference_object?.bbox[3] - reference_object?.bbox[1],
-        });
-
-        setPictureStatus("Generating annotated image...");
-
-        const pred1 = await outputImageMutation.mutateAsync({
-          user: userId,
-          image_s3_uri: `s3://weighlty/${res1.Key}`,
-          predictions: [
-            ...predictions_with_size,
-            ...(parsedPredictions.map((obj: any) => ({
-              ...obj,
-              class: obj.object,
-            })) as any[]),
-          ],
-        });
-
-        if (pred1.annotated_s3_uri) {
-          const updatedPhotos = [...capturedPhotos];
-          updatedPhotos[currentPhotoIndex] = {
-            photo: photo.photo,
-            processed: true,
-            annotatedImage: {
-              image_s3_uri: `s3://weighlty/${res1.Key}`,
-              annotated_s3_uri: pred1.annotated_s3_uri,
-              predictions: predictions_with_size,
-            },
-          };
-          setCapturedPhotos(updatedPhotos);
-
-          if (currentPhotoIndex + 1 < requiredPhotos) {
-            setCurrentPhotoIndex(currentPhotoIndex + 1);
-          } else {
-            navigateToPrediction(updatedPhotos);
+        try {
+          const predictions_with_size = await referenceCalculatorMutation.mutateAsync({
+            predictions: [
+              {
+                bbox: Object.values(bbox),
+                object: "pine",
+                confidence: 0.99,
+              },
+            ],
+            reference_width_cm: 5.8,
+            reference_width_px: reference_object.bbox[2] - reference_object.bbox[0],
+            focal_length_px: 10,
+            reference_height_px: reference_object.bbox[3] - reference_object.bbox[1],
+          });
+  
+          setPictureStatus("Generating annotated image...");
+  
+          // Convert predictions_with_size to a mutable array of objects and force type any[]
+          const mutablePredictionsWithSize = Array.from(predictions_with_size, x => ({ ...x }));
+  
+          const pred1 = await outputImageMutation.mutateAsync({
+            user: userId,
+            image_s3_uri: `s3://weighlty/${res1.Key}`,
+            predictions: [
+              ...mutablePredictionsWithSize,
+              ...(parsedPredictions.map((obj: any) => ({
+                ...obj,
+                class: obj.object,
+              })) as any[]),
+            ],
+          });
+  
+          if (pred1.annotated_s3_uri) {
+            const updatedPhotos = [...capturedPhotos];
+            updatedPhotos[currentPhotoIndex] = {
+              photo: photo.photo,
+              processed: true,
+              annotatedImage: {
+                image_s3_uri: `s3://weighlty/${res1.Key}`,
+                annotated_s3_uri: pred1.annotated_s3_uri,
+                predictions: Array.from(predictions_with_size, x => ({ ...x })),
+              },
+            };
+            setCapturedPhotos(updatedPhotos);
+  
+            if (currentPhotoIndex + 1 < requiredPhotos) {
+              setCurrentPhotoIndex(currentPhotoIndex + 1);
+            } else {
+              navigateToPrediction(updatedPhotos);
+            }
+            setIsProcessing(false);
+            return true;
           }
-          return true;
+        } catch (error) {
+          console.error('Error in reference calculator:', error);
+          // Fall through to manual selection if calculation fails
         }
-      } else {
-        setPictureStatus("No objects detected");
-        Alert.alert(
-          "No objects detected",
-          "Would you like to manually select the object area?",
-          [
-            {
-              text: "Yes",
-              onPress: () => {
-                setShowManualBoundingBox(true);
-                setIsProcessing(false);
-              },
-            },
-            {
-              text: "No",
-              onPress: () => {
-                Alert.alert(
-                  "No objects detected",
-                  "Please try again with a clearer image or different angle",
-                  [{ text: "OK" }]
-                );
-                setIsProcessing(false);
-              },
-            },
-          ]
-        );
       }
-
+      
+      // Always offer manual selection if we get here (no object detection or reference calculation failed)
+      setPictureStatus("No objects detected");
+      Alert.alert(
+        "No objects detected",
+        "Would you like to manually select the object area?",
+        [
+          {
+            text: "Yes",
+            onPress: () => {
+              setShowManualBoundingBox(true);
+              setIsProcessing(false);
+            },
+          },
+          {
+            text: "No",
+            onPress: () => {
+              Alert.alert(
+                "No objects detected",
+                "Please try again with a clearer image or different angle",
+                [{ text: "OK" }]
+              );
+              setIsProcessing(false);
+            },
+          },
+        ]
+      );
+      
       setIsProcessing(false);
       return false;
     } catch (e) {
@@ -370,70 +395,14 @@ export default function CameraScreen() {
         processed: false,
       };
 
+      // Create a new array with the photo at the current index
       const updatedPhotos = [...capturedPhotos];
       updatedPhotos[currentPhotoIndex] = newPhoto;
       setCapturedPhotos(updatedPhotos);
 
+      // Process the photo
       await processPhoto(newPhoto);
     }
-  };
-
-  const renderPhotoPreview = () => {
-    if (showManualBoundingBox && capturedPhotos[currentPhotoIndex]) {
-      return (
-        <View style={styles.container}>
-          <AppHeader title="Manual Selection" showBack={true} />
-          <ManualBoundingBox
-            imageUri={capturedPhotos[currentPhotoIndex].photo.uri}
-            onBoundingBoxSelected={handleManualBoundingBox}
-          />
-          {isProcessing && (
-            <View style={styles.processingContainer}>
-              <ActivityIndicator size="large" color="#FFF" />
-              <Text style={styles.processingText}>{pictureStatus}</Text>
-            </View>
-          )}
-        </View>
-      );
-    }
-
-    if (capturedPhotos.length > 0) {
-      return (
-        <View style={styles.previewContainer}>
-          <ScrollView horizontal pagingEnabled style={styles.previewScroll}>
-            {capturedPhotos.map((photo, index) => (
-              <View key={index} style={styles.previewImageContainer}>
-                <Image source={{ uri: photo.photo.uri }} style={styles.previewImage} />
-                <View style={styles.previewOverlay}>
-                  <Text style={styles.previewText}>Photo {index + 1}</Text>
-                  {!photo.processed && (
-                    <TouchableOpacity
-                      style={styles.retakeButton}
-                      onPress={() => {
-                        const newPhotos = [...capturedPhotos];
-                        newPhotos.splice(index);
-                        setCapturedPhotos(newPhotos);
-                        setCurrentPhotoIndex(index);
-                      }}
-                    >
-                      <Text style={styles.retakeButtonText}>Retake</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-          {isProcessing && (
-            <View style={styles.processingContainer}>
-              <ActivityIndicator size="large" color="#FFF" />
-              <Text style={styles.processingText}>{pictureStatus}</Text>
-            </View>
-          )}
-        </View>
-      );
-    }
-
-    return null;
   };
 
   return (
@@ -442,61 +411,106 @@ export default function CameraScreen() {
       <AppHeader title="Camera" showBack={true} />
 
       <View style={styles.cameraContainer}>
-        {capturedPhotos.length < requiredPhotos && (<>
-          <CameraView
-            ref={cameraRef}
-            style={styles.camera}
+        <CameraView
+          ref={cameraRef}
+          style={styles.camera}
+        />
+        <View style={styles.cameraOverlay}>
+          <OrientationGuide
+            onOrientationValid={setIsOrientationValid}
+            mode={mode}
           />
-          <View style={styles.cameraOverlay}>
-            <OrientationGuide
-              onOrientationValid={setIsOrientationValid}
-              mode={mode}
-            />
-            <View style={styles.buttonContainer}>
-              <View style={styles.buttonContainerInner} >
+          <View style={styles.buttonContainer}>
+            <View style={styles.buttonContainerInner}>
               <TouchableOpacity
                 style={[styles.modeButton, mode === 'top-down' && styles.activeModeButton]}
-                onPress={() => setMode('top-down')}
+                onPress={() => handleModeChange('top-down')}
               >
                 <Icon name="arrow-down" type="material-community" color={mode === 'top-down' ? '#4CAF50' : '#FFF'} />
                 <Text style={[styles.modeButtonText, mode === 'top-down' && styles.activeModeButtonText]}>Top-Down</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modeButton, mode === 'horizontal' && styles.activeModeButton]}
-                onPress={() => setMode('horizontal')}
+                onPress={() => handleModeChange('horizontal')}
               >
                 <Icon name="camera" type="material-community" color={mode === 'horizontal' ? '#4CAF50' : '#FFF'} />
                 <Text style={[styles.modeButtonText, mode === 'horizontal' && styles.activeModeButtonText]}>Horizontal</Text>
               </TouchableOpacity>
-              </View>
             </View>
-            <View>
-              <View style={styles.instructionsContainer}>
-                <Text style={styles.instructionsText}>{getPhotoInstructions()}</Text>
-                <Text style={styles.photoCountText}>
-                  Photo {currentPhotoIndex + 1} of {requiredPhotos}
-                </Text>
-              </View>
-              <CameraControls
-                onCapture={takePicture}
-                onPickImage={(photo: CameraCapturedPicture | undefined) => {
-                  if (!photo) return;
-                  const newPhoto: CapturedPhoto = {
-                    photo: photo,
-                    processed: false,
-                  };
-                  const updatedPhotos = [...capturedPhotos];
-                  updatedPhotos[currentPhotoIndex] = newPhoto;
-                  setCapturedPhotos(updatedPhotos);
-                  processPhoto(newPhoto);
-                }}
-                isProcessing={isProcessing}
-              />
+          </View>
+          <View>
+            <View style={styles.instructionsContainer}>
+              <Text style={styles.instructionsText}>{getPhotoInstructions()}</Text>
+              <Text style={styles.photoCountText}>
+                Photo {currentPhotoIndex + 1} of {requiredPhotos}
+              </Text>
             </View>
-            </View>
-          </>
+            <CameraControls
+              onCapture={takePicture}
+              onPickImage={(photo: CameraCapturedPicture | undefined) => {
+                if (!photo) return;
+                const newPhoto: CapturedPhoto = {
+                  photo: photo,
+                  processed: false,
+                };
+                const updatedPhotos = [...capturedPhotos];
+                updatedPhotos[currentPhotoIndex] = newPhoto;
+                setCapturedPhotos(updatedPhotos);
+                processPhoto(newPhoto);
+              }}
+              isProcessing={isProcessing}
+            />
+          </View>
+        </View>
+
+        {/* Show previews in an overlay that doesn't block the camera */}
+        {capturedPhotos.length > 0 && (
+          <View style={styles.previewOverlayContainer}>
+            <ScrollView horizontal style={styles.previewScroll}>
+              {capturedPhotos.map((photo, index) => (
+                <View key={index} style={styles.previewThumbContainer}>
+                  <Image source={{ uri: photo.photo.uri }} style={styles.previewThumb} />
+                  <View style={styles.previewThumbOverlay}>
+                    <Text style={styles.previewThumbText}>{index + 1}</Text>
+                    {!photo.processed && (
+                      <TouchableOpacity
+                        style={styles.retakeButton}
+                        onPress={() => {
+                          const newPhotos = [...capturedPhotos];
+                          newPhotos.splice(index);
+                          setCapturedPhotos(newPhotos);
+                          setCurrentPhotoIndex(index);
+                        }}
+                      >
+                        <Text style={styles.retakeButtonText}>Retake</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
         )}
-        {renderPhotoPreview()}
+
+        {isProcessing && (
+          <View style={styles.processingContainer}>
+            <ActivityIndicator size="large" color="#FFF" />
+            <Text style={styles.processingText}>{pictureStatus}</Text>
+          </View>
+        )}
+
+        {showManualBoundingBox && capturedPhotos[currentPhotoIndex] && (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+            <ManualBoundingBox
+              imageUri={capturedPhotos[currentPhotoIndex].photo.uri}
+              onBoundingBoxSelected={handleManualBoundingBox}
+              onCancel={() => {
+                setShowManualBoundingBox(false);
+                setIsProcessing(false);
+              }}
+            />
+          </View>
+        )}
       </View>
     </View>
   );
@@ -838,6 +852,40 @@ const styles = StyleSheet.create({
   retakeButtonText: {
     color: 'white',
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  previewOverlayContainer: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: 'transparent',
+  },
+  previewThumbContainer: {
+    width: 80,
+    height: 80,
+    marginLeft: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  previewThumb: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  previewThumbOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 4,
+    alignItems: 'center',
+  },
+  previewThumbText: {
+    color: 'white',
+    fontSize: 12,
     fontWeight: 'bold',
   },
 });
