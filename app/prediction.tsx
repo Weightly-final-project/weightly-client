@@ -32,8 +32,8 @@ export default function PredictionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const dynamoCreateMutation = useDynmo_createMutation();
-  const { user } = useAuth();
-  const userId = user?.username || "guest";
+  const { user, isLoading: authLoading } = useAuth();
+  const userId = authLoading ? "loading" : (user?.username || "guest");
 
   const { item, predictions } = params;
   const {
@@ -74,6 +74,14 @@ export default function PredictionScreen() {
     length_cm: 0.0,
   });
   const [refreshing, setRefreshing] = useState(false);
+
+  // Log user once when component mounts or auth state changes
+  useEffect(() => {
+    if (!authLoading) {
+      console.log("Prediction screen using user:", userId);
+    }
+    // Only include authLoading and userId, not other dependencies that might change frequently
+  }, [authLoading, userId]);
 
   const saveResults = async () => {
     try {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,8 +18,20 @@ export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useAuth();
+  const [redirectAttempted, setRedirectAttempted] = useState(false);
+  const { signIn, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
+
+  // Handle automatic redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !redirectAttempted) {
+      console.log("Already authenticated, redirecting to home");
+      setRedirectAttempted(true);
+      setTimeout(() => {
+        router.replace("/");
+      }, 100);
+    }
+  }, [isAuthenticated, router, redirectAttempted]);
 
   const handleSignIn = async () => {
     if (!username || !password) {
@@ -27,12 +39,19 @@ export default function LoginScreen() {
       return;
     }
 
+    if (isLoading) return;
+    
     setIsLoading(true);
+
     try {
-      await signIn(username, password);
-      router.replace("/");
+      console.log("Attempting login...");
+      const result = await signIn(username, password);
+      
+      // Success - the app will naturally redirect via the isAuthenticated effect
+      console.log("Login successful, auth state will trigger navigation");
     } catch (error: any) {
       console.error("Sign in error:", error);
+      setIsLoading(false);
 
       // Show specific error messages based on error type
       if (error.name === "UserNotConfirmedException") {
@@ -46,11 +65,12 @@ export default function LoginScreen() {
             },
             {
               text: "Resend Code",
-              onPress: () =>
+              onPress: () => {
                 router.push({
                   pathname: "/signup",
                   params: { username, isConfirming: "true" },
-                }),
+                });
+              }
             },
           ]
         );
@@ -70,7 +90,9 @@ export default function LoginScreen() {
             },
             {
               text: "Sign Up",
-              onPress: () => router.push("/signup"),
+              onPress: () => {
+                router.push("/signup");
+              }
             },
           ]
         );
@@ -81,8 +103,6 @@ export default function LoginScreen() {
             "Failed to sign in. Please check your credentials and try again."
         );
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 

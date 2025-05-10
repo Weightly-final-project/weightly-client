@@ -8,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { Link } from "expo-router";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { hooks, ResponseType } from "../utils/api";
 import { ActivityIndicator, Button } from "react-native-paper";
 import PredictionItem from "../components/prediction-card";
@@ -19,19 +19,29 @@ const { useDynmo_getMutation } = hooks;
 
 export default function PredictionListScreen() {
   const dynmo_getMutation = useDynmo_getMutation();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [predictions, setPredictions] = useState<
     ResponseType<"dynmo_get"> | undefined
   >(undefined);
   const [loading, setLoading] = useState(true);
+  const [fetchInProgress, setFetchInProgress] = useState(false);
+  const initialFetchCompleted = useRef(false);
+  
+  // Memoize userId so it's stable between renders
+  const userId = useMemo(() => 
+    user?.username || "guest", 
+    [user?.username]
+  );
 
-  // Use useCallback with empty dependency array to prevent recreation
+  // Use useCallback with stable dependencies to prevent recreation on every render
   const fetchResult = useCallback(() => {
+    if (authLoading || fetchInProgress) {
+      console.log("Auth still loading or fetch in progress, delaying fetch");
+      return;
+    }
+    
+    setFetchInProgress(true);
     setLoading(true);
-
-    // Use the authenticated user's username if available, otherwise fallback to guest
-    const userId = user?.username || "guest";
-
     console.log("Fetching predictions for user:", userId);
 
     dynmo_getMutation.mutate(
@@ -43,6 +53,8 @@ export default function PredictionListScreen() {
           if (pre.length === 0) {
             setPredictions([]);
             setLoading(false);
+            setFetchInProgress(false);
+            initialFetchCompleted.current = true;
             return;
           }
 
@@ -57,6 +69,8 @@ export default function PredictionListScreen() {
               console.log("All prediction URLs processed, updating state");
               setPredictions(updatedPredictions);
               setLoading(false);
+              setFetchInProgress(false);
+              initialFetchCompleted.current = true;
             }
           };
 
@@ -110,21 +124,37 @@ export default function PredictionListScreen() {
           console.error("Error fetching predictions:", error);
           Alert.alert("Error", "Failed to load predictions. Please try again.");
           setLoading(false);
+          setFetchInProgress(false);
+          initialFetchCompleted.current = true;
         },
       }
     );
-  }, [user?.username]); // Update dependency array to include user
+  }, [dynmo_getMutation, userId, authLoading, fetchInProgress]);
 
-  // Run when component mounts or user changes
+  // Single useEffect to run once when auth is ready or when userId changes
   useEffect(() => {
-    console.log("Predictions screen mounted or user changed, fetching data");
-    fetchResult();
-  }, [fetchResult]); // Update dependency array
+    // Only fetch if auth is ready, no fetch is in progress, and we haven't completed the initial fetch
+    if (!authLoading && !fetchInProgress && !initialFetchCompleted.current) {
+      console.log("Auth ready, fetching predictions. User:", userId);
+      fetchResult();
+    }
+  }, [authLoading, userId, fetchResult, fetchInProgress]);
 
   const handleRefresh = () => {
     console.log("Manual refresh triggered");
+    // Reset the ref if we want to manually refresh
     fetchResult();
   };
+
+  // Show loading indicator while authentication is checking
+  if (authLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6200ee" />
+        <Text style={styles.loadingText}>Checking authentication...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

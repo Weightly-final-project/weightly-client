@@ -130,7 +130,7 @@ export default function SignupScreen() {
         [
           {
             text: "Sign In",
-            onPress: () => router.replace("/(auth)/login"),
+            onPress: () => router.replace("/login"),
           },
         ]
       );
@@ -170,7 +170,7 @@ export default function SignupScreen() {
   };
 
   const navigateToSignIn = () => {
-    router.replace("/(auth)/login");
+    router.replace("/login");
   };
 
   if (isConfirming) {
@@ -239,7 +239,7 @@ export default function SignupScreen() {
                   },
                   {
                     text: "Go to Login",
-                    onPress: () => router.replace("/(auth)/login"),
+                    onPress: () => router.replace("/login"),
                   },
                 ]
               );
@@ -344,10 +344,12 @@ export default function SignupScreen() {
             )}
           </TouchableOpacity>
 
-          <View style={styles.signInContainer}>
-            <Text style={styles.signInText}>Already have an account?</Text>
-            <TouchableOpacity onPress={navigateToSignIn}>
-              <Text style={styles.signInLink}>Sign In</Text>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account?</Text>
+            <TouchableOpacity
+              onPress={navigateToSignIn}
+            >
+              <Text style={styles.footerLink}>Log In</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -411,17 +413,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  signInContainer: {
+  footer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
   },
-  signInText: {
+  footerText: {
     color: "#bbb",
     fontSize: 14,
     marginRight: 4,
   },
-  signInLink: {
+  footerLink: {
     color: "#6200ee",
     fontSize: 14,
     fontWeight: "bold",

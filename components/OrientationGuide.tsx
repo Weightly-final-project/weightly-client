@@ -27,7 +27,7 @@ export const OrientationGuide: React.FC<OrientationGuideProps> = ({ onOrientatio
       isValid = Math.abs(beta) < 15;
     }
     onOrientationValid(isValid);
-  }, [beta, gamma, mode]);
+  }, [beta, gamma, mode, onOrientationValid]);
 
   const _subscribe = () => {
     setSubscription(
