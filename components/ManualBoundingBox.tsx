@@ -1,5 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Image, PanResponder, StyleSheet, Dimensions, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { GestureHandlerRootView, PinchGestureHandler, PanGestureHandler, State } from 'react-native-gesture-handler';
+import Animated, { 
+  useAnimatedGestureHandler, 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withTiming,
+  runOnJS
+} from 'react-native-reanimated';
 
 interface ManualBoundingBoxProps {
   imageUri: string;
@@ -12,9 +20,30 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
   const [boxEnd, setBoxEnd] = useState<{ x: number; y: number } | null>(null);
   const [imageLayout, setImageLayout] = useState<{ width: number; height: number } | null>(null);
   const [isAdjusting, setIsAdjusting] = useState(false);
-  const [activeCorner, setActiveCorner] = useState<string | null>(null);
+  const [activeHandler, setActiveHandler] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [initialTouch, setInitialTouch] = useState<{ x: number; y: number } | null>(null);
+  const [initialBox, setInitialBox] = useState<{ start: { x: number; y: number } | null, end: { x: number; y: number } | null } | null>(null);
+  const [isZooming, setIsZooming] = useState(false);
+  const [zoomEnabled, setZoomEnabled] = useState(false);
+  const [previewImageSize, setPreviewImageSize] = useState<{ width: number; height: number } | null>(null);
   const imageRef = useRef<Image>(null);
+  const previewRef = useRef<View>(null);
+  
+  // Zoom related values
+  const scale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedScale = useSharedValue(1);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+  
+  // Preview settings
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewSource, setPreviewSource] = useState<string | null>(null);
+  
+  // Add a tip for tighter bounding box
+  const [showTightBoxTip, setShowTightBoxTip] = useState(true);
 
   // Function to calculate box coordinates
   const getBoxCoordinates = () => {
@@ -31,63 +60,265 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
   };
 
   const boxCoords = getBoxCoordinates();
+  
+  // Toggle zoom mode
+  const toggleZoom = () => {
+    setZoomEnabled(!zoomEnabled);
+    if (zoomEnabled) {
+      // Reset zoom when disabling
+      scale.value = withTiming(1);
+      translateX.value = withTiming(0);
+      translateY.value = withTiming(0);
+      savedScale.value = 1;
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+    }
+  };
+  
+  // Calculate scaling for preview
+  const getPreviewBoxCoordinates = () => {
+    if (!boxCoords || !imageLayout || !previewImageSize) return null;
+    
+    // Calculate scale factor between original image and preview
+    const scaleX = previewImageSize.width / imageLayout.width;
+    const scaleY = previewImageSize.height / imageLayout.height;
+    
+    return {
+      left: boxCoords.left * scaleX,
+      top: boxCoords.top * scaleY,
+      width: boxCoords.width * scaleX,
+      height: boxCoords.height * scaleY
+    };
+  };
+
+  // Generate a preview of the selected area
+  const generatePreview = () => {
+    if (boxStart && boxEnd && imageLayout) {
+      // For simplicity in this example, we'll use the same image
+      // In a real app, you might want to crop the image here
+      setPreviewSource(imageUri);
+      setShowPreview(true);
+      // Hide tip after first selection
+      setShowTightBoxTip(false);
+    }
+  };
+
+  // Pinch gesture handler for zooming
+  const pinchHandler = useAnimatedGestureHandler({
+    onStart: (_, ctx: any) => {
+      ctx.startScale = savedScale.value;
+    },
+    onActive: (event: any, ctx: any) => {
+      scale.value = Math.max(1, Math.min(5, ctx.startScale * event.scale));
+    },
+    onEnd: () => {
+      savedScale.value = scale.value;
+    },
+  });
+
+  // Pan gesture handler for moving around when zoomed
+  const panHandler = useAnimatedGestureHandler({
+    onStart: (_, ctx: any) => {
+      ctx.startX = savedTranslateX.value;
+      ctx.startY = savedTranslateY.value;
+    },
+    onActive: (event: any, ctx: any) => {
+      translateX.value = ctx.startX + event.translationX;
+      translateY.value = ctx.startY + event.translationY;
+    },
+    onEnd: () => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    },
+  });
+
+  // Animated style for the image container
+  const animatedImageStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: scale.value },
+      ],
+    };
+  });
 
   // Drawing box pan responder
   const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => !isAdjusting,
+    onStartShouldSetPanResponder: () => !isAdjusting && !zoomEnabled,
     onPanResponderGrant: (evt) => {
-      if (isAdjusting) return;
+      if (isAdjusting || zoomEnabled) return;
       const { locationX, locationY } = evt.nativeEvent;
       setBoxStart({ x: locationX, y: locationY });
       setBoxEnd({ x: locationX, y: locationY });
     },
     onPanResponderMove: (evt) => {
-      if (isAdjusting || !boxStart) return;
+      if (isAdjusting || !boxStart || zoomEnabled) return;
       const { locationX, locationY } = evt.nativeEvent;
       setBoxEnd({ x: locationX, y: locationY });
     },
     onPanResponderRelease: () => {
-      if (isAdjusting) return;
+      if (isAdjusting || zoomEnabled) return;
       setIsAdjusting(true);
+      generatePreview();
     },
   });
 
-  // Corner adjustment pan responders
-  const cornerPanResponders = {
-    topLeft: PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (evt) => {
-        if (!boxStart || !boxEnd) return;
+  // Create handle pan responder
+  const createHandlePanResponder = (handleType: string) => {
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => !zoomEnabled,
+      onPanResponderGrant: (evt) => {
+        if (zoomEnabled) return;
         const { locationX, locationY } = evt.nativeEvent;
-        setBoxStart({ x: locationX, y: locationY });
+        setActiveHandler(handleType);
+        setInitialTouch({ x: locationX, y: locationY });
+        setInitialBox({ start: boxStart ? { ...boxStart } : null, end: boxEnd ? { ...boxEnd } : null });
       },
-    }),
-    topRight: PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (evt) => {
-        if (!boxStart || !boxEnd) return;
+        if (!boxStart || !boxEnd || !initialTouch || !initialBox || !initialBox.start || !initialBox.end || zoomEnabled) return;
+        
         const { locationX, locationY } = evt.nativeEvent;
-        setBoxEnd({ x: locationX, y: boxEnd.y });
-        setBoxStart({ x: boxStart.x, y: locationY });
+        const dx = locationX - initialTouch.x;
+        const dy = locationY - initialTouch.y;
+        
+        // Define the minSize to prevent the box from becoming too small
+        const minSize = 20;
+        
+        // Handle different controls (corners and edges)
+        switch (handleType) {
+          case 'topLeft':
+            const newStartX = initialBox.start.x + dx;
+            const newStartY = initialBox.start.y + dy;
+            const newWidthFromLeft = initialBox.end.x - newStartX;
+            const newHeightFromTop = initialBox.end.y - newStartY;
+            
+            if (newWidthFromLeft >= minSize && newHeightFromTop >= minSize) {
+              setBoxStart({ x: newStartX, y: newStartY });
+            } else if (newWidthFromLeft >= minSize) {
+              setBoxStart({ x: newStartX, y: boxStart.y });
+            } else if (newHeightFromTop >= minSize) {
+              setBoxStart({ x: boxStart.x, y: newStartY });
+            }
+            break;
+            
+          case 'topRight':
+            const newEndX = initialBox.end.x + dx;
+            const newEndY = initialBox.start.y + dy;
+            const newWidthFromRight = newEndX - initialBox.start.x;
+            const newHeightFromTopRight = initialBox.end.y - newEndY;
+            
+            if (newWidthFromRight >= minSize && newHeightFromTopRight >= minSize) {
+              setBoxEnd({ x: newEndX, y: boxEnd.y });
+              setBoxStart({ x: boxStart.x, y: newEndY });
+            } else if (newWidthFromRight >= minSize) {
+              setBoxEnd({ x: newEndX, y: boxEnd.y });
+            } else if (newHeightFromTopRight >= minSize) {
+              setBoxStart({ x: boxStart.x, y: newEndY });
+            }
+            break;
+            
+          case 'bottomLeft':
+            const newLeftX = initialBox.start.x + dx;
+            const newBottomY = initialBox.end.y + dy;
+            const newWidthFromBottomLeft = initialBox.end.x - newLeftX;
+            const newHeightFromBottomLeft = newBottomY - initialBox.start.y;
+            
+            if (newWidthFromBottomLeft >= minSize && newHeightFromBottomLeft >= minSize) {
+              setBoxStart({ x: newLeftX, y: boxStart.y });
+              setBoxEnd({ x: boxEnd.x, y: newBottomY });
+            } else if (newWidthFromBottomLeft >= minSize) {
+              setBoxStart({ x: newLeftX, y: boxStart.y });
+            } else if (newHeightFromBottomLeft >= minSize) {
+              setBoxEnd({ x: boxEnd.x, y: newBottomY });
+            }
+            break;
+            
+          case 'bottomRight':
+            const newRightX = initialBox.end.x + dx;
+            const newBottomRightY = initialBox.end.y + dy;
+            const newWidthFromBottomRight = newRightX - initialBox.start.x;
+            const newHeightFromBottomRight = newBottomRightY - initialBox.start.y;
+            
+            if (newWidthFromBottomRight >= minSize && newHeightFromBottomRight >= minSize) {
+              setBoxEnd({ x: newRightX, y: newBottomRightY });
+            } else if (newWidthFromBottomRight >= minSize) {
+              setBoxEnd({ x: newRightX, y: boxEnd.y });
+            } else if (newHeightFromBottomRight >= minSize) {
+              setBoxEnd({ x: boxEnd.x, y: newBottomRightY });
+            }
+            break;
+            
+          case 'top':
+            const newTop = initialBox.start.y + dy;
+            const topHeight = initialBox.end.y - newTop;
+            
+            if (topHeight >= minSize) {
+              setBoxStart({ x: boxStart.x, y: newTop });
+            }
+            break;
+            
+          case 'right':
+            const newRight = initialBox.end.x + dx;
+            const rightWidth = newRight - initialBox.start.x;
+            
+            if (rightWidth >= minSize) {
+              setBoxEnd({ x: newRight, y: boxEnd.y });
+            }
+            break;
+            
+          case 'bottom':
+            const newBottom = initialBox.end.y + dy;
+            const bottomHeight = newBottom - initialBox.start.y;
+            
+            if (bottomHeight >= minSize) {
+              setBoxEnd({ x: boxEnd.x, y: newBottom });
+            }
+            break;
+            
+          case 'left':
+            const newLeft = initialBox.start.x + dx;
+            const leftWidth = initialBox.end.x - newLeft;
+            
+            if (leftWidth >= minSize) {
+              setBoxStart({ x: newLeft, y: boxStart.y });
+            }
+            break;
+            
+          case 'move':
+            setBoxStart({ 
+              x: initialBox.start.x + dx,
+              y: initialBox.start.y + dy
+            });
+            setBoxEnd({ 
+              x: initialBox.end.x + dx,
+              y: initialBox.end.y + dy
+            });
+            break;
+        }
+        
+        // Update preview when box changes
+        generatePreview();
       },
-    }),
-    bottomLeft: PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (evt) => {
-        if (!boxStart || !boxEnd) return;
-        const { locationX, locationY } = evt.nativeEvent;
-        setBoxStart({ x: locationX, y: boxStart.y });
-        setBoxEnd({ x: boxEnd.x, y: locationY });
+      onPanResponderRelease: () => {
+        setActiveHandler(null);
+        setInitialTouch(null);
+        setInitialBox(null);
       },
-    }),
-    bottomRight: PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (evt) => {
-        if (!boxStart || !boxEnd) return;
-        const { locationX, locationY } = evt.nativeEvent;
-        setBoxEnd({ x: locationX, y: locationY });
-      },
-    }),
+    });
+  };
+  
+  // Handle pan responders
+  const handlePanResponders = {
+    topLeft: createHandlePanResponder('topLeft'),
+    topRight: createHandlePanResponder('topRight'),
+    bottomLeft: createHandlePanResponder('bottomLeft'),
+    bottomRight: createHandlePanResponder('bottomRight'),
+    top: createHandlePanResponder('top'),
+    right: createHandlePanResponder('right'),
+    bottom: createHandlePanResponder('bottom'),
+    left: createHandlePanResponder('left'),
+    move: createHandlePanResponder('move')
   };
 
   const handleSubmit = () => {
@@ -108,11 +339,32 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
     setBoxStart(null);
     setBoxEnd(null);
     setIsAdjusting(false);
-    setActiveCorner(null);
+    setActiveHandler(null);
+    setInitialTouch(null);
+    setInitialBox(null);
+    setShowPreview(false);
+    setShowTightBoxTip(true);
   };
+  
+  // Calculate box dimensions in cm
+  const getBoxDimensions = () => {
+    if (!boxCoords || !imageLayout) return null;
+    
+    // This is just a placeholder calculation - in a real app you'd use
+    // calibration with a known object to get actual cm dimensions
+    const pixelsToCm = 0.05; // example conversion factor
+    
+    return {
+      width: (boxCoords.width * pixelsToCm).toFixed(1),
+      height: (boxCoords.height * pixelsToCm).toFixed(1)
+    };
+  };
+  
+  const boxDimensions = getBoxDimensions();
+  const previewBoxCoords = getPreviewBoxCoordinates();
 
   return (
-    <View style={styles.container}>
+    <GestureHandlerRootView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
           <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -122,80 +374,203 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
             ? "Draw a box around the object" 
             : "Adjust corners for precise selection"}
         </Text>
+        <TouchableOpacity 
+          style={[styles.zoomButton, zoomEnabled ? styles.zoomActiveButton : {}]} 
+          onPress={toggleZoom}
+        >
+          <Text style={styles.zoomButtonText}>
+            {zoomEnabled ? "Exit Zoom" : "Zoom"}
+          </Text>
+        </TouchableOpacity>
       </View>
-      <View {...panResponder.panHandlers} style={styles.imageContainer}>
-        <Image
-          ref={imageRef}
-          source={{ uri: imageUri }}
-          style={styles.image}
-          resizeMode="contain"
-          onLayout={(event) => {
-            const { width, height } = event.nativeEvent.layout;
-            setImageLayout({ width, height });
-          }}
-        />
-        
-        {/* Box */}
-        {boxCoords && (
-          <View
-            style={[
-              styles.box,
-              {
-                left: boxCoords.left,
-                top: boxCoords.top,
-                width: boxCoords.width,
-                height: boxCoords.height,
-              },
-            ]}
+      
+      {/* Tip for tighter box */}
+      {showTightBoxTip && (
+        <View style={styles.tightBoxTip}>
+          <Text style={styles.tightBoxTipText}>
+            ✓ Draw a box that fits tightly around the object
+          </Text>
+          <Text style={styles.tightBoxTipText}>
+            ✓ Use corner handles to resize precisely
+          </Text>
+        </View>
+      )}
+      
+      {/* Main image area with zoom and pan gestures */}
+      <PinchGestureHandler
+        enabled={zoomEnabled}
+        onGestureEvent={pinchHandler}
+      >
+        <Animated.View style={styles.pinchContainer}>
+          <PanGestureHandler
+            enabled={zoomEnabled}
+            onGestureEvent={panHandler}
           >
-            {isAdjusting && (
-              <>
-                {/* Corner points */}
-                <View
-                  {...cornerPanResponders.topLeft.panHandlers}
-                  style={[
-                    styles.cornerPoint, 
-                    { top: -12, left: -12 },
-                    activeCorner === 'topLeft' && styles.activeCorner
-                  ]}
-                  onTouchStart={() => setActiveCorner('topLeft')}
-                  onTouchEnd={() => setActiveCorner(null)}
+            <Animated.View style={[styles.imageContainer, zoomEnabled ? animatedImageStyle : {}]}>
+              {/* The image with pan responder for drawing the box */}
+              <View {...(zoomEnabled ? {} : panResponder.panHandlers)} style={styles.imageWrapper}>
+                <Image
+                  ref={imageRef}
+                  source={{ uri: imageUri }}
+                  style={styles.image}
+                  resizeMode="contain"
+                  onLayout={(event) => {
+                    const { width, height } = event.nativeEvent.layout;
+                    setImageLayout({ width, height });
+                  }}
                 />
-                <View
-                  {...cornerPanResponders.topRight.panHandlers}
-                  style={[
-                    styles.cornerPoint, 
-                    { top: -12, right: -12 },
-                    activeCorner === 'topRight' && styles.activeCorner
-                  ]}
-                  onTouchStart={() => setActiveCorner('topRight')}
-                  onTouchEnd={() => setActiveCorner(null)}
-                />
-                <View
-                  {...cornerPanResponders.bottomLeft.panHandlers}
-                  style={[
-                    styles.cornerPoint, 
-                    { bottom: -12, left: -12 },
-                    activeCorner === 'bottomLeft' && styles.activeCorner
-                  ]}
-                  onTouchStart={() => setActiveCorner('bottomLeft')}
-                  onTouchEnd={() => setActiveCorner(null)}
-                />
-                <View
-                  {...cornerPanResponders.bottomRight.panHandlers}
-                  style={[
-                    styles.cornerPoint, 
-                    { bottom: -12, right: -12 },
-                    activeCorner === 'bottomRight' && styles.activeCorner
-                  ]}
-                  onTouchStart={() => setActiveCorner('bottomRight')}
-                  onTouchEnd={() => setActiveCorner(null)}
-                />
-              </>
+                
+                {/* Box overlay */}
+                {boxCoords && (
+                  <View
+                    style={[
+                      styles.box,
+                      {
+                        left: boxCoords.left,
+                        top: boxCoords.top,
+                        width: boxCoords.width,
+                        height: boxCoords.height,
+                      },
+                    ]}
+                  >
+                    {/* Box dimensions */}
+                    {boxDimensions && (
+                      <View style={styles.boxDimensions}>
+                        <Text style={styles.boxDimensionsText}>
+                          Adjust to fit your object tightly
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {isAdjusting && !zoomEnabled && (
+                      <>
+                        {/* Move handle (center) */}
+                        <View
+                          {...handlePanResponders.move.panHandlers}
+                          style={[
+                            styles.moveHandle,
+                            activeHandler === 'move' && styles.activeHandle
+                          ]}
+                        />
+                        
+                        {/* Corner handles */}
+                        <View
+                          {...handlePanResponders.topLeft.panHandlers}
+                          style={[
+                            styles.cornerHandle, 
+                            styles.topLeftHandle,
+                            activeHandler === 'topLeft' && styles.activeHandle
+                          ]}
+                        />
+                        <View
+                          {...handlePanResponders.topRight.panHandlers}
+                          style={[
+                            styles.cornerHandle, 
+                            styles.topRightHandle,
+                            activeHandler === 'topRight' && styles.activeHandle
+                          ]}
+                        />
+                        <View
+                          {...handlePanResponders.bottomLeft.panHandlers}
+                          style={[
+                            styles.cornerHandle, 
+                            styles.bottomLeftHandle,
+                            activeHandler === 'bottomLeft' && styles.activeHandle
+                          ]}
+                        />
+                        <View
+                          {...handlePanResponders.bottomRight.panHandlers}
+                          style={[
+                            styles.cornerHandle, 
+                            styles.bottomRightHandle,
+                            activeHandler === 'bottomRight' && styles.activeHandle
+                          ]}
+                        />
+                        
+                        {/* Edge handles */}
+                        <View
+                          {...handlePanResponders.top.panHandlers}
+                          style={[
+                            styles.edgeHandle, 
+                            styles.topEdgeHandle,
+                            activeHandler === 'top' && styles.activeHandle
+                          ]}
+                        />
+                        <View
+                          {...handlePanResponders.right.panHandlers}
+                          style={[
+                            styles.edgeHandle, 
+                            styles.rightEdgeHandle,
+                            activeHandler === 'right' && styles.activeHandle
+                          ]}
+                        />
+                        <View
+                          {...handlePanResponders.bottom.panHandlers}
+                          style={[
+                            styles.edgeHandle, 
+                            styles.bottomEdgeHandle,
+                            activeHandler === 'bottom' && styles.activeHandle
+                          ]}
+                        />
+                        <View
+                          {...handlePanResponders.left.panHandlers}
+                          style={[
+                            styles.edgeHandle, 
+                            styles.leftEdgeHandle,
+                            activeHandler === 'left' && styles.activeHandle
+                          ]}
+                        />
+                      </>
+                    )}
+                  </View>
+                )}
+              </View>
+            </Animated.View>
+          </PanGestureHandler>
+        </Animated.View>
+      </PinchGestureHandler>
+      
+      {/* Preview panel showing what's selected */}
+      {showPreview && isAdjusting && (
+        <View style={styles.previewContainer}>
+          <Text style={styles.previewTitle}>Preview of Selection:</Text>
+          <View 
+            style={styles.previewImageContainer}
+            ref={previewRef}
+            onLayout={(event) => {
+              const { width, height } = event.nativeEvent.layout;
+              setPreviewImageSize({ width, height });
+            }}
+          >
+            <Image
+              source={{ uri: previewSource || '' }}
+              style={styles.previewImage}
+              resizeMode="contain"
+            />
+            
+            {/* Overlay bounding box on the preview */}
+            {previewBoxCoords && (
+              <View
+                style={[
+                  styles.previewBox,
+                  {
+                    left: previewBoxCoords.left,
+                    top: previewBoxCoords.top,
+                    width: previewBoxCoords.width,
+                    height: previewBoxCoords.height,
+                  },
+                ]}
+              />
             )}
+            
+            <View style={styles.previewOverlay}>
+              <Text style={styles.previewDescription}>
+                This is the area that will be marked as a wood object
+              </Text>
+            </View>
           </View>
-        )}
-      </View>
+        </View>
+      )}
       
       {isAdjusting && (
         <View style={styles.buttonContainer}>
@@ -218,9 +593,26 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
           </TouchableOpacity>
         </View>
       )}
-    </View>
+      
+      {/* Zoom instructions */}
+      {zoomEnabled && (
+        <View style={styles.zoomInstructions}>
+          <Text style={styles.zoomInstructionsText}>
+            • Pinch to zoom in/out
+          </Text>
+          <Text style={styles.zoomInstructionsText}>
+            • Drag to move around
+          </Text>
+          <Text style={styles.zoomInstructionsText}>
+            • Tap "Exit Zoom" to continue editing
+          </Text>
+        </View>
+      )}
+    </GestureHandlerRootView>
   );
 };
+
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -247,9 +639,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     flex: 1,
   },
+  pinchContainer: {
+    flex: 1,
+    overflow: 'hidden',
+  },
   imageContainer: {
     flex: 1,
-    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageWrapper: {
+    width: '100%',
+    height: '100%',
   },
   image: {
     flex: 1,
@@ -289,17 +690,177 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  cornerPoint: {
+  cornerHandle: {
     position: 'absolute',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     borderWidth: 2,
     borderColor: '#00ff00',
+    zIndex: 10,
   },
-  activeCorner: {
+  topLeftHandle: {
+    top: -17,
+    left: -17,
+  },
+  topRightHandle: {
+    top: -17,
+    right: -17,
+  },
+  bottomLeftHandle: {
+    bottom: -17,
+    left: -17,
+  },
+  bottomRightHandle: {
+    bottom: -17,
+    right: -17,
+  },
+  edgeHandle: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderWidth: 2,
+    borderColor: '#00ff00',
+    zIndex: 5,
+  },
+  topEdgeHandle: {
+    top: -12,
+    left: '25%',
+    width: '50%',
+    height: 24,
+    borderRadius: 12,
+  },
+  rightEdgeHandle: {
+    right: -12,
+    top: '25%',
+    width: 24,
+    height: '50%',
+    borderRadius: 12,
+  },
+  bottomEdgeHandle: {
+    bottom: -12,
+    left: '25%',
+    width: '50%',
+    height: 24,
+    borderRadius: 12,
+  },
+  leftEdgeHandle: {
+    left: -12,
+    top: '25%',
+    width: 24,
+    height: '50%',
+    borderRadius: 12,
+  },
+  moveHandle: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderWidth: 2,
+    borderColor: '#00ff00',
+    left: '50%',
+    top: '50%',
+    marginLeft: -20,
+    marginTop: -20,
+    zIndex: 4,
+  },
+  activeHandle: {
     backgroundColor: '#00ff00',
-    transform: [{ scale: 1.2 }],
+    transform: [{ scale: 1.1 }],
   },
+  zoomButton: {
+    backgroundColor: '#333',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  zoomActiveButton: {
+    backgroundColor: '#4CAF50',
+  },
+  zoomButtonText: {
+    color: '#FFF',
+    fontSize: 14,
+  },
+  zoomInstructions: {
+    position: 'absolute',
+    bottom: 80,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    padding: 16,
+    alignItems: 'center',
+  },
+  zoomInstructionsText: {
+    color: '#FFF',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  previewContainer: {
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: 12,
+  },
+  previewTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  previewImageContainer: {
+    height: 120,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#222',
+  },
+  previewBox: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: '#00ff00',
+    backgroundColor: 'rgba(0, 255, 0, 0.2)',
+    zIndex: 5,
+  },
+  previewOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 8,
+  },
+  previewDescription: {
+    color: '#FFF',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  tightBoxTip: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  tightBoxTipText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    marginBottom: 4,
+    fontWeight: 'bold',
+  },
+  boxDimensions: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 4,
+    alignItems: 'center',
+  },
+  boxDimensionsText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  }
 }); 
