@@ -20,7 +20,7 @@ import {
 import { useRouter } from "expo-router";
 import { Icon } from "react-native-elements";
 
-import { uploadFile } from "../utils/s3";
+import { getFile, uploadFile } from "../utils/s3";
 import { hooks } from "../utils/api";
 import Permission from "../components/Permission";
 import { Buffer } from "buffer";
@@ -46,6 +46,7 @@ interface CapturedPhoto {
   annotatedImage?: {
     image_s3_uri: string;
     annotated_s3_uri: string;
+    download_annotated_s3_uri?: string;
     predictions: any[];
   };
 }
@@ -163,12 +164,16 @@ export default function CameraScreen() {
 
       if (pred1.annotated_s3_uri) {
         const updatedPhotos = [...capturedPhotos];
+        // const download_annotated_s3 = await getFile(
+        //   pred1.annotated_s3_uri
+        // );
         updatedPhotos[currentPhotoIndex] = {
           ...currentPhoto,
           processed: true,
           annotatedImage: {
             image_s3_uri: `s3://weighlty/${res1.Key}`,
             annotated_s3_uri: pred1.annotated_s3_uri,
+            // download_annotated_s3_uri: download_annotated_s3?.url,
             predictions: predictions_with_size,
           },
         };
@@ -291,12 +296,17 @@ export default function CameraScreen() {
   
           if (pred1.annotated_s3_uri) {
             const updatedPhotos = [...capturedPhotos];
+            // const download_annotated_s3 = await getFile(
+            //   pred1.annotated_s3_uri
+            // )
+            // console.log("download_annotated_s3", download_annotated_s3);
             updatedPhotos[currentPhotoIndex] = {
               photo: photo.photo,
               processed: true,
               annotatedImage: {
                 image_s3_uri: `s3://weighlty/${res1.Key}`,
                 annotated_s3_uri: pred1.annotated_s3_uri,
+                // download_annotated_s3_uri: download_annotated_s3?.url,
                 predictions: Array.from(predictions_with_size, x => ({ ...x })),
               },
             };

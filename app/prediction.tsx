@@ -385,7 +385,7 @@ export default function PredictionScreen() {
               textStyle={styles.chipText}
             >
               {typeof image_s3_uri === "string"
-                ? getFilenameFromS3Uri(image_s3_uri)
+                ? getFilenameFromS3Uri(photos[activePhotoIndex]?.image_s3_uri || image_s3_uri)
                 : "Image"}
             </Chip>
           </View>
@@ -440,7 +440,7 @@ export default function PredictionScreen() {
                 <Card.Content>
                   <Text style={styles.storageLabel}>Image S3 URI:</Text>
                   <Text style={styles.storageValue} selectable>
-                    {image_s3_uri}
+                    {photos[activePhotoIndex]?.image_s3_uri || image_s3_uri}
                   </Text>
                 </Card.Content>
               </View>
@@ -451,7 +451,7 @@ export default function PredictionScreen() {
                 <Card.Content>
                   <Text style={styles.storageLabel}>Annotated S3 URI:</Text>
                   <Text style={styles.storageValue} selectable>
-                    {annotated_s3_uri}
+                    {photos[activePhotoIndex]?.annotated_s3_uri || annotated_s3_uri}
                   </Text>
                 </Card.Content>
               </View>

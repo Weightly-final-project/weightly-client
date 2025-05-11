@@ -4,6 +4,7 @@ import { createContext, useContext } from "react";
 const responseExample = {
   image_s3_uri: String(),
   annotated_s3_uri: String(),
+  download_annotated_s3_uri: String(),
   predictions: [] as readonly any[],
 };
 
