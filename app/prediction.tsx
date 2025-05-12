@@ -97,10 +97,6 @@ export default function PredictionScreen() {
     }
   }, [predictions]);
 
-  const woodCount = useMemo(() => {
-    return parsedPredictions.length;
-  }, [parsedPredictions]);
-
   const [pictureStatus, setPictureStatus] = useState<string>("Ready to save");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [totalVolume, setTotalVolume] = useState<number>(0.0);
@@ -132,6 +128,13 @@ export default function PredictionScreen() {
     // Convert S3 URI to proper HTTPS URL
     return getProperImageUrl(imageUri);
   }, [photos, activePhotoIndex, download_annotated_s3_uri]);
+  
+  const woodCount = useMemo(() => {
+    if (photos && photos.length > 0 && activePhotoIndex < photos.length) {
+      return photos[activePhotoIndex].predictions.length - 1 || 0;
+    }
+    return 0;
+  }, [activePhotoIndex, photos]);
 
   // Log user once when component mounts or auth state changes
   useEffect(() => {
