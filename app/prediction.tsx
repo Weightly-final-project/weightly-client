@@ -13,6 +13,7 @@ import {
   FlatList,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import Checkbox from 'expo-checkbox';
 import { Card, Chip, Divider } from "react-native-paper";
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { hooks } from "../utils/api";
@@ -22,15 +23,17 @@ import weight_mapping from "../utils/weight_mapping";
 import {
   getFilenameFromS3Uri,
   formatDate,
+  convertToStandartSize,
 } from "../utils/functions";
 import { useAuth } from "../utils/AuthContext";
+import { set } from "date-fns";
 
 const { useDynmo_createMutation } = hooks;
 
 // Utility function to convert S3 URIs to HTTPS URLs
 const getProperImageUrl = (uri: string | null | undefined): string | null => {
   if (!uri) return null;
-  
+
   // Check if it's an S3 URI
   if (uri.startsWith('s3://')) {
     // Convert s3://bucket/key to https://bucket.s3.amazonaws.com/key
@@ -40,7 +43,7 @@ const getProperImageUrl = (uri: string | null | undefined): string | null => {
     const key = parts.slice(1).join('/');
     return `https://${bucket}.s3.amazonaws.com/${key}`;
   }
-  
+
   // If it's already an HTTP URL, return as is
   return uri;
 };
@@ -66,7 +69,7 @@ export default function PredictionScreen() {
       return { photos: [] };
     }
   }, [item]);
-  
+
   const {
     prediction_id,
     created_at,
@@ -79,21 +82,21 @@ export default function PredictionScreen() {
   } = itemData;
   // State for image carousel
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
-  
+
   // Parse the predictions and get all dimensions
   const parsedPredictions = useMemo(() => {
     try {
       return predictions
         ? JSON.parse(predictions as string)?.filter(
-            (item: any) => item.class === "pine"
-          ) || []
+          (item: any) => item.class === "pine"
+        ) || []
         : [];
     } catch (error) {
       console.error("Failed to parse predictions:", error);
       return [];
     }
   }, [predictions]);
-  
+
   const woodCount = useMemo(() => {
     return parsedPredictions.length;
   }, [parsedPredictions]);
@@ -110,21 +113,22 @@ export default function PredictionScreen() {
     height_cm: 0.0,
     length_cm: 0.0,
   });
+  const [standartFlag, setStandartFlag] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Determine which image to show based on active index and convert S3 URIs
   const activeImage = useMemo(() => {
     let imageUri;
-    
+
     if (photos && photos.length > 0 && activePhotoIndex < photos.length) {
-      imageUri = photos[activePhotoIndex].download_annotated_s3_uri || 
-                photos[activePhotoIndex].annotated_s3_uri;
+      imageUri = photos[activePhotoIndex].download_annotated_s3_uri ||
+        photos[activePhotoIndex].annotated_s3_uri;
     }
-    
+
     if (!imageUri) {
       imageUri = download_annotated_s3_uri;
     }
-    
+
     // Convert S3 URI to proper HTTPS URL
     return getProperImageUrl(imageUri);
   }, [photos, activePhotoIndex, download_annotated_s3_uri]);
@@ -139,12 +143,12 @@ export default function PredictionScreen() {
   // Improved size calculation that prioritizes non-zero values from predictions
   const calculateSizes = useCallback(() => {
     if (!parsedPredictions || parsedPredictions.length === 0) return;
-    
+
     // Best estimates from the predictions
     let bestWidth = 0;
     let bestHeight = 0;
     let bestLength = 0;
-    
+
     // Extract best measurements, prioritizing non-zero values
     parsedPredictions.forEach((prediction: any) => {
       if (prediction.width_cm && prediction.width_cm > bestWidth) {
@@ -157,43 +161,49 @@ export default function PredictionScreen() {
         bestLength = prediction.length_cm;
       }
     });
-    
+
     // If we have two images, use them to improve dimension calculation
     if (photos && photos.length >= 2) {
       // Top-down view provides best width and height
       const topDownPreds = photos[0]?.predictions || [];
       // Horizontal view provides best depth/length
       const horizontalPreds = photos[1]?.predictions || [];
-      
+
       // Extract measurements from top-down view (if available)
       topDownPreds.forEach((pred: any) => {
         if (pred.width_cm && pred.width_cm > 0) bestWidth = pred.width_cm;
         if (pred.height_cm && pred.height_cm > 0) bestHeight = pred.height_cm;
       });
-      
+
       // Extract measurements from horizontal view (if available)
       horizontalPreds.forEach((pred: any) => {
         if (pred.width_cm && pred.width_cm > 0) bestLength = pred.width_cm;
       });
     }
 
-        // Calculate total volume (use existing utility)
+    if (standartFlag) {
+      // Convert to standard size
+      const standartSize = convertToStandartSize({
+        width_cm: bestWidth,
+        height_cm: bestHeight,
+        length_cm: bestLength,
+      });
+      bestWidth = standartSize.width_cm;
+      bestHeight = standartSize.height_cm;
+      bestLength = standartSize.length_cm;
+    }
+
+    // Calculate total volume (use existing utility)
     const newTotalVolume = bestWidth * bestHeight * bestLength;
-    
+
     // Update state with batched updates to prevent excessive re-renders
     setTotalVolume(newTotalVolume);
-    console.log("Total volume:", newTotalVolume, "cm³");
-    console.log("Best dimensions:", {
-      width_cm: bestWidth,
-      height_cm: bestHeight,
-      length_cm: bestLength,
-    });
     setAvarageSize({
       width_cm: bestWidth,
       height_cm: bestHeight,
       length_cm: bestLength,
     });
-  }, [parsedPredictions, photos]);
+  }, [parsedPredictions, photos, standartFlag])
 
   // Run calculations only once on mount and when dependencies change
   useEffect(() => {
@@ -203,6 +213,10 @@ export default function PredictionScreen() {
       isInitialized.current = true;
     }
   }, [calculateSizes, refreshing]);
+
+  useEffect(() => {
+    calculateSizes();
+  }, [calculateSizes, standartFlag]);
 
   const saveResults = async () => {
     try {
@@ -251,6 +265,10 @@ export default function PredictionScreen() {
       setIsProcessing(false);
     }
   };
+
+  const handleCheckboxPress = useCallback(() => {
+    setStandartFlag((prev) => !prev);
+  }, []);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -315,13 +333,13 @@ export default function PredictionScreen() {
             </TouchableOpacity>
           </View>
         )}
-      
+
         {/* Main Image */}
         <View style={styles.imageContainer}>
           {activeImage ? (
-            <Image 
-              source={{ uri: activeImage }} 
-              style={styles.image} 
+            <Image
+              source={{ uri: activeImage }}
+              style={styles.image}
               resizeMode="contain"
               onError={(e) => console.error("Image loading error:", e.nativeEvent.error)}
             />
@@ -330,35 +348,35 @@ export default function PredictionScreen() {
               <Text style={styles.imagePlaceholderText}>No image available</Text>
             </View>
           )}
-          
+
           {/* Current image label */}
           <View style={styles.imageTypeOverlay}>
             <Text style={styles.imageTypeText}>
               {activePhotoIndex === 0 ? "Top-Down View" : "Horizontal View"}
             </Text>
           </View>
-          
+
           {/* Dimensions overlay */}
           <View style={styles.pointInstructions}>
             <Text style={styles.dimensionTitle}>Object Dimensions:</Text>
-            
+
             <View style={styles.dimensionsGrid}>
               <View style={styles.dimensionItem}>
                 <Text style={styles.dimensionLabel}>Width:</Text>
                 <Text style={styles.dimensionValue}>{formatSize(avarageSize.width_cm)}</Text>
               </View>
-              
+
               <View style={styles.dimensionItem}>
                 <Text style={styles.dimensionLabel}>Height:</Text>
                 <Text style={styles.dimensionValue}>{formatSize(avarageSize.height_cm)}</Text>
               </View>
-              
+
               <View style={styles.dimensionItem}>
                 <Text style={styles.dimensionLabel}>Length:</Text>
                 <Text style={styles.dimensionValue}>{formatSize(avarageSize.length_cm)}</Text>
               </View>
             </View>
-            
+
             <View style={styles.dimensionsRow}>
               <View style={styles.dimensionItem}>
                 <Text style={styles.dimensionLabel}>Volume:</Text>
@@ -366,21 +384,21 @@ export default function PredictionScreen() {
                   {totalVolume > 0 ? `${(totalVolume / 1000000).toFixed(3)} m³` : "N/A"}
                 </Text>
               </View>
-              
+
               <View style={styles.dimensionItem}>
                 <Text style={styles.dimensionLabel}>Weight:</Text>
                 <Text style={styles.dimensionValue}>
                   {totalVolume > 0 ? `${(totalVolume * weight_mapping.pine / 1000).toFixed(2)} kg` : "N/A"}
                 </Text>
               </View>
-              
+
               <View style={styles.dimensionItem}>
                 <Text style={styles.dimensionLabel}>Count:</Text>
                 <Text style={styles.dimensionValue}>{woodCount}</Text>
               </View>
             </View>
           </View>
-          
+
           <View style={styles.imageOverlay}>
             <Chip
               icon="image"
@@ -393,7 +411,7 @@ export default function PredictionScreen() {
             </Chip>
           </View>
         </View>
-        
+
         <View style={styles.detailsContainer}>
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Prediction Information</Text>
@@ -430,6 +448,15 @@ export default function PredictionScreen() {
                   ? formatDate(updated_at)
                   : "Unknown"}
               </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <View style={styles.infoLabel}>
+                <Checkbox
+                  value={standartFlag}
+                  onValueChange={handleCheckboxPress}
+                />
+              </View>
+              <Text style={styles.infoValue}>Convert To Standart Size</Text>
             </View>
           </View>
 
