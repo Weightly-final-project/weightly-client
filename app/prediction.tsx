@@ -22,8 +22,6 @@ import weight_mapping from "../utils/weight_mapping";
 import {
   getFilenameFromS3Uri,
   formatDate,
-  totalVolumeCalculator,
-  avarageSizeCalculator,
 } from "../utils/functions";
 import { useAuth } from "../utils/AuthContext";
 
@@ -79,7 +77,6 @@ export default function PredictionScreen() {
     download_annotated_s3_uri,
     photos = [], // Include photos array
   } = itemData;
-  
   // State for image carousel
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   
@@ -143,9 +140,6 @@ export default function PredictionScreen() {
   const calculateSizes = useCallback(() => {
     if (!parsedPredictions || parsedPredictions.length === 0) return;
     
-    // Calculate total volume (use existing utility)
-    const newTotalVolume = totalVolumeCalculator(parsedPredictions);
-    
     // Best estimates from the predictions
     let bestWidth = 0;
     let bestHeight = 0;
@@ -179,16 +173,25 @@ export default function PredictionScreen() {
       
       // Extract measurements from horizontal view (if available)
       horizontalPreds.forEach((pred: any) => {
-        if (pred.length_cm && pred.length_cm > 0) bestLength = pred.length_cm;
+        if (pred.width_cm && pred.width_cm > 0) bestLength = pred.width_cm;
       });
     }
+
+        // Calculate total volume (use existing utility)
+    const newTotalVolume = bestWidth * bestHeight * bestLength;
     
     // Update state with batched updates to prevent excessive re-renders
     setTotalVolume(newTotalVolume);
+    console.log("Total volume:", newTotalVolume, "cm³");
+    console.log("Best dimensions:", {
+      width_cm: bestWidth,
+      height_cm: bestHeight,
+      length_cm: bestLength,
+    });
     setAvarageSize({
-      width_cm: bestWidth || 0,
-      height_cm: bestHeight || 0,
-      length_cm: bestLength || 0,
+      width_cm: bestWidth,
+      height_cm: bestHeight,
+      length_cm: bestLength,
     });
   }, [parsedPredictions, photos]);
 

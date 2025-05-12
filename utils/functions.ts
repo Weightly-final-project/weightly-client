@@ -15,15 +15,6 @@ export const formatDate = (dateString: string) => {
   }
 }
 
-export const totalVolumeCalculator = (predictions: any[]) => {
-    return predictions.reduce((acc: number, prediction: any) => {
-        if (prediction.volume_cm3) {
-          return acc + prediction.volume_cm3
-        }
-        return acc
-    }, 0.0)
-};
-
 export const avarageSizeCalculator = (predictions: any[]) => {
     const avarageSizeCalc = predictions.reduce((acc: any, prediction: any) => {
         if (prediction.width_cm && prediction.height_cm && prediction.length_cm) {
