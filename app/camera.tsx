@@ -306,7 +306,10 @@ export default function CameraScreen() {
                 image_s3_uri: `s3://weighlty/${res1.Key}`,
                 annotated_s3_uri: pred1.annotated_s3_uri,
                 download_annotated_s3_uri: download_annotated_s3?.url,
-                predictions: Array.from(predictions_with_size, x => ({ ...x })),
+                predictions: [
+                  ...Array.from(predictions_with_size, x => ({ ...x })),
+                  ...parsedPredictions
+                ]
               },
             };
             setCapturedPhotos(updatedPhotos);
