@@ -20,7 +20,7 @@ import {
 import { useRouter } from "expo-router";
 import { Icon } from "react-native-elements";
 
-import { uploadFile } from "../utils/s3";
+import { getFile, uploadFile } from "../utils/s3";
 import { hooks } from "../utils/api";
 import Permission from "../components/Permission";
 import { Buffer } from "buffer";
@@ -46,6 +46,7 @@ interface CapturedPhoto {
   annotatedImage?: {
     image_s3_uri: string;
     annotated_s3_uri: string;
+    download_annotated_s3_uri?: string;
     predictions: any[];
   };
 }
@@ -163,12 +164,16 @@ export default function CameraScreen() {
 
       if (pred1.annotated_s3_uri) {
         const updatedPhotos = [...capturedPhotos];
+        const download_annotated_s3 = await getFile(
+          pred1.annotated_s3_uri.split('/').splice(3).join('/')
+        );
         updatedPhotos[currentPhotoIndex] = {
           ...currentPhoto,
           processed: true,
           annotatedImage: {
             image_s3_uri: `s3://weighlty/${res1.Key}`,
             annotated_s3_uri: pred1.annotated_s3_uri,
+            download_annotated_s3_uri: download_annotated_s3?.url,
             predictions: predictions_with_size,
           },
         };
@@ -240,7 +245,7 @@ export default function CameraScreen() {
 
       // Log detection information for debugging
       console.log('Detection status:', {
-        photoIndex: currentPhotoIndex, 
+        photoIndex: currentPhotoIndex,
         foundPredictions: parsedPredictions && parsedPredictions.length > 0,
         foundBbox: !!bbox,
         hasReferenceObject: !!reference_object,
@@ -271,12 +276,12 @@ export default function CameraScreen() {
             focal_length_px: 10,
             reference_height_px: reference_object.bbox[3] - reference_object.bbox[1],
           });
-  
+
           setPictureStatus("Generating annotated image...");
-  
+
           // Convert predictions_with_size to a mutable array of objects and force type any[]
           const mutablePredictionsWithSize = Array.from(predictions_with_size, x => ({ ...x }));
-  
+
           const pred1 = await outputImageMutation.mutateAsync({
             user: userId,
             image_s3_uri: `s3://weighlty/${res1.Key}`,
@@ -288,20 +293,24 @@ export default function CameraScreen() {
               })) as any[]),
             ],
           });
-  
+
           if (pred1.annotated_s3_uri) {
             const updatedPhotos = [...capturedPhotos];
+            const download_annotated_s3 = await getFile(
+              pred1.annotated_s3_uri.split('/').splice(3).join('/')
+            );
             updatedPhotos[currentPhotoIndex] = {
               photo: photo.photo,
               processed: true,
               annotatedImage: {
                 image_s3_uri: `s3://weighlty/${res1.Key}`,
                 annotated_s3_uri: pred1.annotated_s3_uri,
+                download_annotated_s3_uri: download_annotated_s3?.url,
                 predictions: Array.from(predictions_with_size, x => ({ ...x })),
               },
             };
             setCapturedPhotos(updatedPhotos);
-  
+
             if (currentPhotoIndex + 1 < requiredPhotos) {
               setCurrentPhotoIndex(currentPhotoIndex + 1);
             } else {
@@ -315,7 +324,7 @@ export default function CameraScreen() {
           // Fall through to manual selection if calculation fails
         }
       }
-      
+
       // Always offer manual selection if we get here (no object detection or reference calculation failed)
       setPictureStatus("No objects detected");
       Alert.alert(
@@ -342,7 +351,7 @@ export default function CameraScreen() {
           },
         ]
       );
-      
+
       setIsProcessing(false);
       return false;
     } catch (e) {

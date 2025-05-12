@@ -51,7 +51,7 @@ export default function ConfirmPhotosScreen() {
   const handleConfirm = () => {
     // Get the last photo to use its annotated image
     const lastPhoto = photos[photos.length - 1];
-    
+
     // Create a proper item object with all required fields
     const item = {
       prediction_id: `temp_prediction_${Date.now()}`,
@@ -61,10 +61,11 @@ export default function ConfirmPhotosScreen() {
       image_s3_uri: lastPhoto?.annotatedImage?.image_s3_uri || "",
       annotated_s3_uri: lastPhoto?.annotatedImage?.annotated_s3_uri || "",
       download_image_s3_uri: lastPhoto?.photo?.uri || "",
-      download_annotated_s3_uri: lastPhoto?.photo?.uri || "",
       photos: photos.map(p => ({
         image_s3_uri: p.annotatedImage?.image_s3_uri || "",
         annotated_s3_uri: p.annotatedImage?.annotated_s3_uri || "",
+        download_annotated_s3_uri:  p.annotatedImage?.download_annotated_s3_uri || "",
+        predictions: p.annotatedImage?.predictions
       })),
     };
 
@@ -107,7 +108,7 @@ export default function ConfirmPhotosScreen() {
                 {index === 0 ? 'Top-Down View' : 'Horizontal View'}
               </Text>
               <Image
-                source={{ uri: photo.photo.uri }}
+                source={{ uri: photo.annotatedImage?.download_annotated_s3_uri || photo.photo.uri }}
                 style={styles.photoImage}
                 resizeMode="contain"
               />
