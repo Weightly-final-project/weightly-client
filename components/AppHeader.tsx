@@ -47,12 +47,12 @@ export default function AppHeader({
 
 const styles = StyleSheet.create({
   header: {
-    height: Platform.OS === "ios" ? 90 : 60,
+    height: 90,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 40 : 0,
+    paddingTop: 40 ,
     backgroundColor: "#121212",
     borderBottomWidth: 1,
     borderBottomColor: "#2a2a2a",
