@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { Accelerometer } from 'expo-sensors';
+import { DeviceMotion } from 'expo-sensors';
 
-interface OrientationGuideProps {
-  onOrientationValid: React.Dispatch<React.SetStateAction<boolean>>;
+interface GyroGuideProps {
+  onGyroValid: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const OrientationGuide: React.FC<OrientationGuideProps> = ({ onOrientationValid }) => {
-  const [{ x, y }, setOrientation] = useState({ x: 0, y: 0 });
+export const GyroGuide: React.FC<GyroGuideProps> = ({ onGyroValid }) => {
+  const [{ beta, gamma }, setGyro] = useState({ beta: 0, gamma: 0 });
   const [isValid, setIsValid] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
 
@@ -16,23 +16,29 @@ export const OrientationGuide: React.FC<OrientationGuideProps> = ({ onOrientatio
     return () => _unsubscribe();
   }, []);
 
-    useEffect(() => {
-      const isValid = !(Math.abs(y) > Math.abs(x));
-  
-      onOrientationValid(prev => {
-        if (prev !== isValid) {
-          setIsValid(isValid);
-          return isValid;
-        }
-        return prev;
-      });
-    }, [x, y, onOrientationValid]);
+  useEffect(() => {
+    const isValid = Math.abs(Math.abs(gamma) - 90) < 15 && Math.abs(beta) < 15;
+
+    onGyroValid(prev => {
+      if (prev !== isValid) {
+        setIsValid(isValid);
+        return isValid;
+      }
+      return prev;
+    });
+  }, [beta, gamma, onGyroValid]);
 
   const _subscribe = () => {
     setSubscription(
-      Accelerometer.addListener(({ x, y }) => setOrientation({x,y}))
+      DeviceMotion.addListener(({ rotation }) => {
+        // Convert rotation rate to degrees
+        setGyro({
+          beta: rotation.beta * (180 / Math.PI),
+          gamma: rotation.gamma * (180 / Math.PI),
+        });
+      })
     );
-    Accelerometer.setUpdateInterval(100);
+    DeviceMotion.setUpdateInterval(100); // Update every 100ms
   };
 
   const _unsubscribe = () => {
@@ -43,7 +49,7 @@ export const OrientationGuide: React.FC<OrientationGuideProps> = ({ onOrientatio
   const getGuideMessage = () => {
       return isValid
         ? "Perfect! Hold steady"
-        : "Hold your phone horizontaly";
+        : "Hold your phone perpendicular to the ground";
   };
 
   return (
