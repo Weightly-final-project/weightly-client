@@ -426,6 +426,7 @@ export default function CameraScreen() {
           ref={cameraRef}
           style={styles.camera}
         />
+        <View style={styles.rectangle}></View>
         <View style={styles.cameraOverlay}>
           <View style={styles.guideContainer}>
             <GyroGuide
@@ -565,6 +566,17 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
     width: "100%",
+  },
+  rectangle: {
+    position: "absolute",
+    top: height * (4/27),
+    left: width*(1/9),
+    width: width*(7/9),
+    height: height*(16/27),
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.5)",
+    borderRadius: 12,
+    zIndex: 0,
   },
   cameraHeader: {
     flexDirection: "row",
