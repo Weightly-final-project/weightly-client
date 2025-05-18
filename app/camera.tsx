@@ -18,7 +18,6 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-
 import { getFile, uploadFile } from "../utils/s3";
 import { hooks } from "../utils/api";
 import Permission from "../components/Permission";

@@ -82,12 +82,19 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
     // Calculate scale factor between original image and preview
     const scaleX = previewImageSize.width / imageLayout.width;
     const scaleY = previewImageSize.height / imageLayout.height;
+    const scale = Math.min(scaleX, scaleY); // Use the smaller scale to maintain aspect ratio
+    
+    // Center the preview
+    const scaledWidth = imageLayout.width * scale;
+    const scaledHeight = imageLayout.height * scale;
+    const offsetX = (previewImageSize.width - scaledWidth) / 2;
+    const offsetY = (previewImageSize.height - scaledHeight) / 2;
     
     return {
-      left: boxCoords.left * scaleX,
-      top: boxCoords.top * scaleY,
-      width: boxCoords.width * scaleX,
-      height: boxCoords.height * scaleY
+      left: boxCoords.left * scale + offsetX,
+      top: boxCoords.top * scale + offsetY,
+      width: boxCoords.width * scale,
+      height: boxCoords.height * scale
     };
   };
 
@@ -149,13 +156,31 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
     onPanResponderGrant: (evt) => {
       if (isAdjusting || zoomEnabled) return;
       const { locationX, locationY } = evt.nativeEvent;
-      setBoxStart({ x: locationX, y: locationY });
-      setBoxEnd({ x: locationX, y: locationY });
+      const scaledX = (locationX - translateX.value) / scale.value;
+      const scaledY = (locationY - translateY.value) / scale.value;
+      setBoxStart({ x: scaledX, y: scaledY });
+      setBoxEnd({ x: scaledX, y: scaledY });
     },
     onPanResponderMove: (evt) => {
       if (isAdjusting || !boxStart || zoomEnabled) return;
       const { locationX, locationY } = evt.nativeEvent;
-      setBoxEnd({ x: locationX, y: locationY });
+      const scaledX = (locationX - translateX.value) / scale.value;
+      const scaledY = (locationY - translateY.value) / scale.value;
+      
+      if (imageLayout) {
+        const maxWidth = imageLayout.width * 0.8; // Back to 80% for initial drawing
+        const maxHeight = imageLayout.height * 0.8;
+        
+        const newX = Math.min(Math.max(scaledX, 0), imageLayout.width);
+        const newY = Math.min(Math.max(scaledY, 0), imageLayout.height);
+        
+        const width = Math.abs(newX - boxStart.x);
+        const height = Math.abs(newY - boxStart.y);
+        
+        if (width <= maxWidth && height <= maxHeight) {
+          setBoxEnd({ x: newX, y: newY });
+        }
+      }
     },
     onPanResponderRelease: () => {
       if (isAdjusting || zoomEnabled) return;
@@ -164,140 +189,45 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
     },
   });
 
-  // Create handle pan responder
+  // Simplify the handle pan responder to only handle moving
   const createHandlePanResponder = (handleType: string) => {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => !zoomEnabled,
+      onMoveShouldSetPanResponder: () => !zoomEnabled,
       onPanResponderGrant: (evt) => {
         if (zoomEnabled) return;
         const { locationX, locationY } = evt.nativeEvent;
+        const scaledX = (locationX - translateX.value) / scale.value;
+        const scaledY = (locationY - translateY.value) / scale.value;
         setActiveHandler(handleType);
-        setInitialTouch({ x: locationX, y: locationY });
+        setInitialTouch({ x: scaledX, y: scaledY });
         setInitialBox({ start: boxStart ? { ...boxStart } : null, end: boxEnd ? { ...boxEnd } : null });
       },
       onPanResponderMove: (evt) => {
-        if (!boxStart || !boxEnd || !initialTouch || !initialBox || !initialBox.start || !initialBox.end || zoomEnabled) return;
+        if (!boxStart || !boxEnd || !initialTouch || !initialBox || !initialBox.start || !initialBox.end || zoomEnabled || !imageLayout) return;
         
         const { locationX, locationY } = evt.nativeEvent;
-        const dx = locationX - initialTouch.x;
-        const dy = locationY - initialTouch.y;
+        const scaledX = (locationX - translateX.value) / scale.value;
+        const scaledY = (locationY - translateY.value) / scale.value;
+        const dx = scaledX - initialTouch.x;
+        const dy = scaledY - initialTouch.y;
+
+        const constrainToImage = (x: number, y: number) => ({
+          x: Math.min(Math.max(x, 0), imageLayout.width),
+          y: Math.min(Math.max(y, 0), imageLayout.height)
+        });
+
+        // Only handle moving the entire box
+        const newStart = constrainToImage(initialBox.start.x + dx, initialBox.start.y + dy);
+        const newEnd = constrainToImage(initialBox.end.x + dx, initialBox.end.y + dy);
         
-        // Define the minSize to prevent the box from becoming too small
-        const minSize = 20;
-        
-        // Handle different controls (corners and edges)
-        switch (handleType) {
-          case 'topLeft':
-            const newStartX = initialBox.start.x + dx;
-            const newStartY = initialBox.start.y + dy;
-            const newWidthFromLeft = initialBox.end.x - newStartX;
-            const newHeightFromTop = initialBox.end.y - newStartY;
-            
-            if (newWidthFromLeft >= minSize && newHeightFromTop >= minSize) {
-              setBoxStart({ x: newStartX, y: newStartY });
-            } else if (newWidthFromLeft >= minSize) {
-              setBoxStart({ x: newStartX, y: boxStart.y });
-            } else if (newHeightFromTop >= minSize) {
-              setBoxStart({ x: boxStart.x, y: newStartY });
-            }
-            break;
-            
-          case 'topRight':
-            const newEndX = initialBox.end.x + dx;
-            const newEndY = initialBox.start.y + dy;
-            const newWidthFromRight = newEndX - initialBox.start.x;
-            const newHeightFromTopRight = initialBox.end.y - newEndY;
-            
-            if (newWidthFromRight >= minSize && newHeightFromTopRight >= minSize) {
-              setBoxEnd({ x: newEndX, y: boxEnd.y });
-              setBoxStart({ x: boxStart.x, y: newEndY });
-            } else if (newWidthFromRight >= minSize) {
-              setBoxEnd({ x: newEndX, y: boxEnd.y });
-            } else if (newHeightFromTopRight >= minSize) {
-              setBoxStart({ x: boxStart.x, y: newEndY });
-            }
-            break;
-            
-          case 'bottomLeft':
-            const newLeftX = initialBox.start.x + dx;
-            const newBottomY = initialBox.end.y + dy;
-            const newWidthFromBottomLeft = initialBox.end.x - newLeftX;
-            const newHeightFromBottomLeft = newBottomY - initialBox.start.y;
-            
-            if (newWidthFromBottomLeft >= minSize && newHeightFromBottomLeft >= minSize) {
-              setBoxStart({ x: newLeftX, y: boxStart.y });
-              setBoxEnd({ x: boxEnd.x, y: newBottomY });
-            } else if (newWidthFromBottomLeft >= minSize) {
-              setBoxStart({ x: newLeftX, y: boxStart.y });
-            } else if (newHeightFromBottomLeft >= minSize) {
-              setBoxEnd({ x: boxEnd.x, y: newBottomY });
-            }
-            break;
-            
-          case 'bottomRight':
-            const newRightX = initialBox.end.x + dx;
-            const newBottomRightY = initialBox.end.y + dy;
-            const newWidthFromBottomRight = newRightX - initialBox.start.x;
-            const newHeightFromBottomRight = newBottomRightY - initialBox.start.y;
-            
-            if (newWidthFromBottomRight >= minSize && newHeightFromBottomRight >= minSize) {
-              setBoxEnd({ x: newRightX, y: newBottomRightY });
-            } else if (newWidthFromBottomRight >= minSize) {
-              setBoxEnd({ x: newRightX, y: boxEnd.y });
-            } else if (newHeightFromBottomRight >= minSize) {
-              setBoxEnd({ x: boxEnd.x, y: newBottomRightY });
-            }
-            break;
-            
-          case 'top':
-            const newTop = initialBox.start.y + dy;
-            const topHeight = initialBox.end.y - newTop;
-            
-            if (topHeight >= minSize) {
-              setBoxStart({ x: boxStart.x, y: newTop });
-            }
-            break;
-            
-          case 'right':
-            const newRight = initialBox.end.x + dx;
-            const rightWidth = newRight - initialBox.start.x;
-            
-            if (rightWidth >= minSize) {
-              setBoxEnd({ x: newRight, y: boxEnd.y });
-            }
-            break;
-            
-          case 'bottom':
-            const newBottom = initialBox.end.y + dy;
-            const bottomHeight = newBottom - initialBox.start.y;
-            
-            if (bottomHeight >= minSize) {
-              setBoxEnd({ x: boxEnd.x, y: newBottom });
-            }
-            break;
-            
-          case 'left':
-            const newLeft = initialBox.start.x + dx;
-            const leftWidth = initialBox.end.x - newLeft;
-            
-            if (leftWidth >= minSize) {
-              setBoxStart({ x: newLeft, y: boxStart.y });
-            }
-            break;
-            
-          case 'move':
-            setBoxStart({ 
-              x: initialBox.start.x + dx,
-              y: initialBox.start.y + dy
-            });
-            setBoxEnd({ 
-              x: initialBox.end.x + dx,
-              y: initialBox.end.y + dy
-            });
-            break;
+        // Only move if both points are within bounds
+        if (newStart.x >= 0 && newEnd.x <= imageLayout.width &&
+            newStart.y >= 0 && newEnd.y <= imageLayout.height) {
+          setBoxStart(newStart);
+          setBoxEnd(newEnd);
         }
         
-        // Update preview when box changes
         generatePreview();
       },
       onPanResponderRelease: () => {
@@ -308,16 +238,8 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
     });
   };
   
-  // Handle pan responders
+  // Simplify to only create move handle
   const handlePanResponders = {
-    topLeft: createHandlePanResponder('topLeft'),
-    topRight: createHandlePanResponder('topRight'),
-    bottomLeft: createHandlePanResponder('bottomLeft'),
-    bottomRight: createHandlePanResponder('bottomRight'),
-    top: createHandlePanResponder('top'),
-    right: createHandlePanResponder('right'),
-    bottom: createHandlePanResponder('bottom'),
-    left: createHandlePanResponder('left'),
     move: createHandlePanResponder('move')
   };
 
@@ -370,9 +292,7 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.instructions}>
-          {!isAdjusting 
-            ? "Draw a box around the object" 
-            : "Adjust corners for precise selection"}
+          Draw a box around the object
         </Text>
         <TouchableOpacity 
           style={[styles.zoomButton, zoomEnabled ? styles.zoomActiveButton : {}]} 
@@ -407,7 +327,6 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
             onGestureEvent={panHandler}
           >
             <Animated.View style={[styles.imageContainer, zoomEnabled ? animatedImageStyle : {}]}>
-              {/* The image with pan responder for drawing the box */}
               <View {...(zoomEnabled ? {} : panResponder.panHandlers)} style={styles.imageWrapper}>
                 <Image
                   ref={imageRef}
@@ -420,109 +339,25 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
                   }}
                 />
                 
-                {/* Box overlay */}
                 {boxCoords && (
-                  <View
+                  <Animated.View
                     style={[
                       styles.box,
                       {
-                        left: boxCoords.left,
-                        top: boxCoords.top,
-                        width: boxCoords.width,
-                        height: boxCoords.height,
+                        left: boxCoords.left * scale.value + translateX.value,
+                        top: boxCoords.top * scale.value + translateY.value,
+                        width: Math.min(boxCoords.width * scale.value, imageLayout?.width || 0),
+                        height: Math.min(boxCoords.height * scale.value, imageLayout?.height || 0),
+                        transform: [{ scale: 1 }]
                       },
                     ]}
                   >
-                    {/* Box dimensions */}
-                    {boxDimensions && (
-                      <View style={styles.boxDimensions}>
-                        <Text style={styles.boxDimensionsText}>
-                          Adjust to fit your object tightly
-                        </Text>
+                    {isAdjusting && !zoomEnabled && (
+                      <View {...handlePanResponders.move.panHandlers} style={[styles.touchArea, styles.moveTouch]}>
+                        <View style={[styles.moveHandle, activeHandler === 'move' && styles.activeHandle]} />
                       </View>
                     )}
-                    
-                    {isAdjusting && !zoomEnabled && (
-                      <>
-                        {/* Move handle (center) */}
-                        <View
-                          {...handlePanResponders.move.panHandlers}
-                          style={[
-                            styles.moveHandle,
-                            activeHandler === 'move' && styles.activeHandle
-                          ]}
-                        />
-                        
-                        {/* Corner handles */}
-                        <View
-                          {...handlePanResponders.topLeft.panHandlers}
-                          style={[
-                            styles.cornerHandle, 
-                            styles.topLeftHandle,
-                            activeHandler === 'topLeft' && styles.activeHandle
-                          ]}
-                        />
-                        <View
-                          {...handlePanResponders.topRight.panHandlers}
-                          style={[
-                            styles.cornerHandle, 
-                            styles.topRightHandle,
-                            activeHandler === 'topRight' && styles.activeHandle
-                          ]}
-                        />
-                        <View
-                          {...handlePanResponders.bottomLeft.panHandlers}
-                          style={[
-                            styles.cornerHandle, 
-                            styles.bottomLeftHandle,
-                            activeHandler === 'bottomLeft' && styles.activeHandle
-                          ]}
-                        />
-                        <View
-                          {...handlePanResponders.bottomRight.panHandlers}
-                          style={[
-                            styles.cornerHandle, 
-                            styles.bottomRightHandle,
-                            activeHandler === 'bottomRight' && styles.activeHandle
-                          ]}
-                        />
-                        
-                        {/* Edge handles */}
-                        <View
-                          {...handlePanResponders.top.panHandlers}
-                          style={[
-                            styles.edgeHandle, 
-                            styles.topEdgeHandle,
-                            activeHandler === 'top' && styles.activeHandle
-                          ]}
-                        />
-                        <View
-                          {...handlePanResponders.right.panHandlers}
-                          style={[
-                            styles.edgeHandle, 
-                            styles.rightEdgeHandle,
-                            activeHandler === 'right' && styles.activeHandle
-                          ]}
-                        />
-                        <View
-                          {...handlePanResponders.bottom.panHandlers}
-                          style={[
-                            styles.edgeHandle, 
-                            styles.bottomEdgeHandle,
-                            activeHandler === 'bottom' && styles.activeHandle
-                          ]}
-                        />
-                        <View
-                          {...handlePanResponders.left.panHandlers}
-                          style={[
-                            styles.edgeHandle, 
-                            styles.leftEdgeHandle,
-                            activeHandler === 'left' && styles.activeHandle
-                          ]}
-                        />
-                      </>
-                    )}
-                  </View>
+                  </Animated.View>
                 )}
               </View>
             </Animated.View>
@@ -544,8 +379,7 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
           >
             <Image
               source={{ uri: previewSource || '' }}
-              style={styles.previewImage}
-              resizeMode="contain"
+              style={[styles.previewImage, { resizeMode: 'contain' }]}
             />
             
             {/* Overlay bounding box on the preview */}
@@ -659,7 +493,7 @@ const styles = StyleSheet.create({
   },
   box: {
     position: 'absolute',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#00ff00',
     backgroundColor: 'rgba(0, 255, 0, 0.1)',
   },
@@ -691,83 +525,75 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   cornerHandle: {
-    position: 'absolute',
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#00ff00',
-    zIndex: 10,
   },
   topLeftHandle: {
-    top: -17,
-    left: -17,
+    top: -5,
+    left: -5,
   },
   topRightHandle: {
-    top: -17,
-    right: -17,
+    top: -5,
+    right: -5,
   },
   bottomLeftHandle: {
-    bottom: -17,
-    left: -17,
+    bottom: -5,
+    left: -5,
   },
   bottomRightHandle: {
-    bottom: -17,
-    right: -17,
+    bottom: -5,
+    right: -5,
   },
   edgeHandle: {
     position: 'absolute',
     backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#00ff00',
     zIndex: 5,
   },
   topEdgeHandle: {
-    top: -12,
-    left: '25%',
-    width: '50%',
-    height: 24,
-    borderRadius: 12,
+    top: -4,
+    left: '30%',
+    width: '40%',
+    height: 8,
+    borderRadius: 4,
   },
   rightEdgeHandle: {
-    right: -12,
-    top: '25%',
-    width: 24,
-    height: '50%',
-    borderRadius: 12,
+    right: -4,
+    top: '30%',
+    width: 8,
+    height: '40%',
+    borderRadius: 4,
   },
   bottomEdgeHandle: {
-    bottom: -12,
-    left: '25%',
-    width: '50%',
-    height: 24,
-    borderRadius: 12,
+    bottom: -4,
+    left: '30%',
+    width: '40%',
+    height: 8,
+    borderRadius: 4,
   },
   leftEdgeHandle: {
-    left: -12,
-    top: '25%',
-    width: 24,
-    height: '50%',
-    borderRadius: 12,
+    left: -4,
+    top: '30%',
+    width: 8,
+    height: '40%',
+    borderRadius: 4,
   },
   moveHandle: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#00ff00',
-    left: '50%',
-    top: '50%',
-    marginLeft: -20,
-    marginTop: -20,
-    zIndex: 4,
   },
   activeHandle: {
     backgroundColor: '#00ff00',
-    transform: [{ scale: 1.1 }],
+    transform: [{ scale: 1.2 }],
   },
   zoomButton: {
     backgroundColor: '#333',
@@ -819,7 +645,7 @@ const styles = StyleSheet.create({
   },
   previewBox: {
     position: 'absolute',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#00ff00',
     backgroundColor: 'rgba(0, 255, 0, 0.2)',
     zIndex: 5,
@@ -849,18 +675,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontWeight: 'bold',
   },
-  boxDimensions: {
+  touchArea: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    padding: 4,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
   },
-  boxDimensionsText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-  }
+  moveTouch: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    left: '50%',
+    top: '50%',
+    marginLeft: -22,
+    marginTop: -22,
+  },
 }); 
