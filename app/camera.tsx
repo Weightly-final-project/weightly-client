@@ -18,7 +18,6 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Icon } from "react-native-elements";
 
 import { getFile, uploadFile } from "../utils/s3";
 import { hooks } from "../utils/api";
@@ -29,6 +28,7 @@ import CameraControls from "../components/CameraControls";
 import AppHeader from "../components/AppHeader";
 import { useAuth } from "../utils/AuthContext";
 import { ManualBoundingBox } from "../components/ManualBoundingBox";
+import { GyroGuide } from "../components/GyroGuide";
 import { OrientationGuide } from "../components/OrientationGuide";
 
 // Use your API hooks
@@ -38,7 +38,7 @@ const {
   useReference_calculatorMutation,
 } = hooks;
 
-type PhotoMode = 'top-down' | 'horizontal';
+type PhotoMode = 'front' | 'side';
 
 interface CapturedPhoto {
   photo: CameraCapturedPicture;
@@ -69,8 +69,9 @@ export default function CameraScreen() {
   const [pictureStatus, setPictureStatus] = useState<string>("Ready to capture");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [showManualBoundingBox, setShowManualBoundingBox] = useState(false);
+  const [isGyroValid, setIsGyroValid] = useState(false);
   const [isOrientationValid, setIsOrientationValid] = useState(false);
-  const [mode, setMode] = useState<PhotoMode>('top-down');
+  const [mode, setMode] = useState<PhotoMode>('front');
   const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
 
@@ -84,10 +85,10 @@ export default function CameraScreen() {
   const requiredPhotos = 2;
 
   const getPhotoInstructions = () => {
-    if (mode === 'top-down') {
-      return "Take a top-down photo of the object";
+    if (mode === 'front') {
+      return "Take a front photo of the object";
     }
-    return `Take horizontal photo of the object.`;
+    return `Take a side photo of the object.`;
   };
 
   useEffect(() => {
@@ -96,16 +97,6 @@ export default function CameraScreen() {
       setCurrentPhotoIndex(0);
     }
   }, [mode]);
-
-  const handleModeChange = (newMode: PhotoMode) => {
-    if (mode !== newMode) {
-      setMode(newMode);
-      // Only reset if we haven't taken any photos yet
-      if (capturedPhotos.length === 0) {
-        setCurrentPhotoIndex(0);
-      }
-    }
-  };
 
   if (!permission || !permission.granted) {
     return (
@@ -371,10 +362,18 @@ export default function CameraScreen() {
   };
 
   const takePicture = async () => {
-    if (!isOrientationValid) {
+    if (!isGyroValid) {
       Alert.alert(
         "Incorrect Angle",
         "Please hold your phone at the correct angle before taking the picture.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    if (!isOrientationValid) {
+      Alert.alert(
+        "Incorrect Orientation",
+        "Please hold your phone horizontaly before taking the picture.",
         [{ text: "OK" }]
       );
       return;
@@ -411,9 +410,9 @@ export default function CameraScreen() {
       const updatedPhotos = [...capturedPhotos];
       updatedPhotos[currentPhotoIndex] = newPhoto;
       setCapturedPhotos(updatedPhotos);
-
       // Process the photo
       await processPhoto(newPhoto);
+      setMode('side');
     }
   };
 
@@ -427,28 +426,17 @@ export default function CameraScreen() {
           ref={cameraRef}
           style={styles.camera}
         />
+        <View style={styles.rectangle}></View>
         <View style={styles.cameraOverlay}>
-          <OrientationGuide
-            onOrientationValid={setIsOrientationValid}
-            mode={mode}
-          />
+          <View style={styles.guideContainer}>
+            <GyroGuide
+              onGyroValid={setIsGyroValid}
+            />
+            <OrientationGuide
+              onOrientationValid={setIsOrientationValid}
+            />
+          </View>
           <View style={styles.buttonContainer}>
-            <View style={styles.buttonContainerInner}>
-              <TouchableOpacity
-                style={[styles.modeButton, mode === 'top-down' && styles.activeModeButton]}
-                onPress={() => handleModeChange('top-down')}
-              >
-                <Icon name="arrow-down" type="material-community" color={mode === 'top-down' ? '#4CAF50' : '#FFF'} />
-                <Text style={[styles.modeButtonText, mode === 'top-down' && styles.activeModeButtonText]}>Top-Down</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modeButton, mode === 'horizontal' && styles.activeModeButton]}
-                onPress={() => handleModeChange('horizontal')}
-              >
-                <Icon name="camera" type="material-community" color={mode === 'horizontal' ? '#4CAF50' : '#FFF'} />
-                <Text style={[styles.modeButtonText, mode === 'horizontal' && styles.activeModeButtonText]}>Horizontal</Text>
-              </TouchableOpacity>
-            </View>
           </View>
           <View>
             <View style={styles.instructionsContainer}>
@@ -469,6 +457,7 @@ export default function CameraScreen() {
                 updatedPhotos[currentPhotoIndex] = newPhoto;
                 setCapturedPhotos(updatedPhotos);
                 processPhoto(newPhoto);
+                setMode('side');
               }}
               isProcessing={isProcessing}
             />
@@ -492,6 +481,7 @@ export default function CameraScreen() {
                           newPhotos.splice(index);
                           setCapturedPhotos(newPhotos);
                           setCurrentPhotoIndex(index);
+                          setMode(newPhotos.length == 0 ? 'front' : 'side');
                         }}
                       >
                         <Text style={styles.retakeButtonText}>Retake</Text>
@@ -577,6 +567,17 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
   },
+  rectangle: {
+    position: "absolute",
+    top: height * (4/27),
+    left: width*(1/9),
+    width: width*(7/9),
+    height: height*(16/27),
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.5)",
+    borderRadius: 12,
+    zIndex: 0,
+  },
   cameraHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -612,6 +613,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: "100%",
     height: "100%",
+  },
+  guideContainer: {
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: 8,
   },
   cameraInstructions: {
     alignItems: "center",
