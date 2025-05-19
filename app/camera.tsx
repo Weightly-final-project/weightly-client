@@ -81,7 +81,7 @@ export default function CameraScreen() {
   const predictMutation = usePredictMutation();
   const outputImageMutation = useOutput_imageMutation();
   const referenceCalculatorMutation = useReference_calculatorMutation();
-  const bboxRefinementMutation = useBbox_refinementMutation();``
+  const bboxRefinementMutation = useBbox_refinementMutation(); ``
 
   const requiredPhotos = 2;
 
@@ -228,30 +228,7 @@ export default function CameraScreen() {
         (obj: any) => obj.object === "rubiks_cube"
       );
 
-      const reference_bbox_refine = await bboxRefinementMutation.mutateAsync({
-        bbox: reference_object?.bbox || [],
-        image_s3_uri: `s3://weighlty/${res1.Key}`,
-      } as const);
-
-      const parsedPredictions = prediction.predictions.filter(
-        (prediction) => prediction.confidence >= 0.5
-      );
-      const bbox = bigBboxCalculator(parsedPredictions);
-
-      setPictureStatus("Analyzing objects...");
-
-      // Log detection information for debugging
-      console.log('Detection status:', {
-        photoIndex: currentPhotoIndex,
-        foundPredictions: parsedPredictions && parsedPredictions.length > 0,
-        foundBbox: !!bbox,
-        hasReferenceObject: !!reference_object,
-        referenceObjectBbox: reference_bbox_refine,
-      });
-
       if (
-        parsedPredictions &&
-        bbox &&
         reference_prediction.predictions &&
         reference_prediction.predictions.length > 0 &&
         reference_object &&
@@ -260,6 +237,26 @@ export default function CameraScreen() {
         reference_object.bbox.every((v: any) => typeof v === 'number')
       ) {
         try {
+          const reference_bbox_refine = await bboxRefinementMutation.mutateAsync({
+            bbox: reference_object?.bbox || [],
+            image_s3_uri: `s3://weighlty/${res1.Key}`,
+          } as const);
+
+          const parsedPredictions = prediction.predictions.filter(
+            (prediction) => prediction.confidence >= 0.5
+          );
+          const bbox = bigBboxCalculator(parsedPredictions);
+
+          setPictureStatus("Analyzing objects...");
+
+          // Log detection information for debugging
+          console.log('Detection status:', {
+            photoIndex: currentPhotoIndex,
+            foundPredictions: parsedPredictions && parsedPredictions.length > 0,
+            foundBbox: !!bbox,
+            hasReferenceObject: !!reference_object,
+            referenceObjectBbox: reference_bbox_refine,
+          });
           const predictions_with_size = await referenceCalculatorMutation.mutateAsync({
             predictions: [
               {
@@ -575,10 +572,10 @@ const styles = StyleSheet.create({
   },
   rectangle: {
     position: "absolute",
-    top: height * (4/27),
-    left: width*(1/9),
-    width: width*(7/9),
-    height: height*(16/27),
+    top: height * (4 / 27),
+    left: width * (1 / 9),
+    width: width * (7 / 9),
+    height: height * (16 / 27),
     borderWidth: 2,
     borderColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: 12,
