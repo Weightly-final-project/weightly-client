@@ -36,6 +36,7 @@ const {
   usePredictMutation,
   useOutput_imageMutation,
   useReference_calculatorMutation,
+  useBbox_refinementMutation,
 } = hooks;
 
 type PhotoMode = 'front' | 'side';
@@ -81,6 +82,7 @@ export default function CameraScreen() {
   const predictMutation = usePredictMutation();
   const outputImageMutation = useOutput_imageMutation();
   const referenceCalculatorMutation = useReference_calculatorMutation();
+  const bboxRefinementMutation = useBbox_refinementMutation();``
 
   const requiredPhotos = 2;
 
@@ -227,6 +229,11 @@ export default function CameraScreen() {
         (obj: any) => obj.object === "rubiks_cube"
       );
 
+      const reference_bbox_refine = await bboxRefinementMutation.mutateAsync({
+        bbox: reference_object?.bbox || [],
+        image_s3_uri: `s3://weighlty/${res1.Key}`,
+      } as const);
+
       const parsedPredictions = prediction.predictions.filter(
         (prediction) => prediction.confidence >= 0.5
       );
@@ -240,7 +247,7 @@ export default function CameraScreen() {
         foundPredictions: parsedPredictions && parsedPredictions.length > 0,
         foundBbox: !!bbox,
         hasReferenceObject: !!reference_object,
-        referenceObjectBbox: reference_object?.bbox,
+        referenceObjectBbox: reference_bbox_refine,
       });
 
       if (

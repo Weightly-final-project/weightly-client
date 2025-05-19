@@ -2,6 +2,18 @@ import { useMutation } from '@tanstack/react-query';
 
 // Base API configuration with single source of truth
 const API = {
+  bbox_refinement: {
+    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/bbox_refinement",
+    method: "POST",
+    requestExample: { 
+      bbox: [] as readonly number[], 
+      image_s3_uri: String(),
+    },
+    responseExample: { 
+      bbox: [] as readonly number[], 
+      image_s3_uri: String(),
+    }
+  },
   predict: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predict_pine",
     method: "POST",
@@ -132,6 +144,7 @@ const fetchApi = async <T extends EndpointKeys>(
   }
   
   if (!response.ok) {
+    console.error(`Error fetching ${API[endpoint].url}:`, data, response.status, await response.json());
     throw new Error(`API error: ${response.status} ${JSON.stringify(await response.json())}`);
   }
   
