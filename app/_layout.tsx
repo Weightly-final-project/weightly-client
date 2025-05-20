@@ -54,14 +54,14 @@ function AppNavigator() {
     console.log("App navigator: routing check - authenticated:", isAuthenticated, "path:", currentSegment);
     
     // Auth screens
-    const authScreens = ["login", "signup", "forgot-password"];
+    const authScreens = ["(auth)"];
     const isAuthScreen = authScreens.includes(currentSegment || "");
     
     // Determine if we need to redirect
     if (!isAuthenticated && !isAuthScreen) {
       console.log("Not authenticated and not on auth screen, redirecting to login");
       setLastNavigation(navKey);
-      router.replace("/login");
+      router.replace("/(auth)/login");
     } else if (isAuthenticated && isAuthScreen) {
       console.log("Authenticated but on auth screen, redirecting to home");
       setLastNavigation(navKey);
@@ -92,8 +92,7 @@ function AppNavigator() {
         contentStyle: { backgroundColor: "#121212" },
       }}
     >
-      <Stack.Screen name="(auth)/login" options={{ title: "Login" }} />
-      <Stack.Screen name="(auth)/signup" options={{ title: "Sign Up" }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="index" options={{ title: "Home" }} />
       <Stack.Screen name="camera" options={{ title: "Camera" }} />
       <Stack.Screen name="prediction" options={{ title: "Prediction" }} />

@@ -1,7 +1,16 @@
 import { Stack } from "expo-router";
-import { Slot } from "expo-router";
 
-// Make this a simple pass-through, as we're using a flat route structure now
 export default function AuthLayout() {
-  return <Slot />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: "#121212" },
+      }}
+    >
+      <Stack.Screen name="login" options={{ title: "Login" }} />
+      <Stack.Screen name="signup" options={{ title: "Sign Up" }} />
+      <Stack.Screen name="forgot-password" options={{ title: "Forgot Password" }} />
+    </Stack>
+  );
 }

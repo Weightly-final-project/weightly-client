@@ -17,7 +17,7 @@ import { useAuth } from "../../utils/AuthContext";
 export default function SignupScreen() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("+1"); // Pre-fill +1 for US
   const [familyName, setFamilyName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -125,7 +125,7 @@ export default function SignupScreen() {
         [
           {
             text: "Sign In",
-            onPress: () => router.push("./login"),
+            onPress: () => router.replace("/login"),
           },
         ]
       );
@@ -162,7 +162,7 @@ export default function SignupScreen() {
   };
 
   const navigateToSignIn = () => {
-    router.push("./login");
+    router.replace("/login");
   };
 
   if (isConfirming) {
@@ -201,8 +201,9 @@ export default function SignupScreen() {
           <TouchableOpacity
             style={styles.linkButton}
             onPress={handleResendCode}
+            disabled={isLoading}
           >
-            <Text style={styles.linkText}>Resend verification code</Text>
+            <Text style={styles.linkText}>Resend Code</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -214,7 +215,11 @@ export default function SignupScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.formContainer}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Sign up to get started</Text>
@@ -225,7 +230,7 @@ export default function SignupScreen() {
               style={styles.input}
               value={username}
               onChangeText={setUsername}
-              placeholder="Enter your username"
+              placeholder="Choose a username"
               placeholderTextColor="#666"
               autoCapitalize="none"
             />
@@ -239,8 +244,8 @@ export default function SignupScreen() {
               onChangeText={setEmail}
               placeholder="Enter your email"
               placeholderTextColor="#666"
-              autoCapitalize="none"
               keyboardType="email-address"
+              autoCapitalize="none"
             />
           </View>
 
@@ -250,7 +255,7 @@ export default function SignupScreen() {
               style={styles.input}
               value={phoneNumber}
               onChangeText={setPhoneNumber}
-              placeholder="Enter phone number with country code (e.g. +1234567890)"
+              placeholder="+1234567890"
               placeholderTextColor="#666"
               keyboardType="phone-pad"
             />
@@ -393,4 +398,4 @@ const styles = StyleSheet.create({
     color: "#6200ee",
     fontSize: 14,
   },
-});
+}); 
