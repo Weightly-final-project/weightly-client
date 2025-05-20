@@ -20,7 +20,9 @@ const API = {
     requestExample: { 
       user: String(), 
       image_s3_uri: String(),
-      model_s3_uri: String(), 
+      model_s3_uri: String(),
+      x_splits: Number(),
+      y_splits: Number(),
     },
     responseExample: { 
       user: String(), 
