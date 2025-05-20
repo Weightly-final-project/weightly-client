@@ -206,23 +206,36 @@ export default function CameraScreen() {
         photo.photo.uri,
         `original_images/${userId}_${Date.now()}_image${currentPhotoIndex + 1}.jpg`
       );
+      let x_splits = 1, y_splits = 1, confidenceThreshold = 0.5;
+
+      if (mode === 'side'){
+        x_splits = 7;
+        y_splits = 3;
+        confidenceThreshold = 0.3;
+      }
 
       const formData1 = {
         user: userId,
         image_s3_uri: `s3://weighlty/${res1.Key}`,
         model_s3_uri: "s3://weighlty/pine.pt",
+        x_splits,
+        y_splits,
       } as const;
 
       const formData2 = {
         user: userId,
         image_s3_uri: `s3://weighlty/${res1.Key}`,
         model_s3_uri: "s3://rbuixcube/large_files/best.pt",
+        x_splits,
+        y_splits,
       } as const;
 
       setPictureStatus("Processing image...");
 
       const prediction = await predictMutation.mutateAsync(formData1);
       const reference_prediction = await predictMutation.mutateAsync(formData2);
+
+      console.log('Prediction results:', prediction.predictions);
 
       const reference_object = reference_prediction.predictions?.find(
         (obj: any) => obj.object === "rubiks_cube"
@@ -243,7 +256,7 @@ export default function CameraScreen() {
           } as const);
 
           const parsedPredictions = prediction.predictions.filter(
-            (prediction) => prediction.confidence >= 0.5
+            (prediction) => prediction.confidence >= confidenceThreshold
           );
           const bbox = bigBboxCalculator(parsedPredictions);
 
