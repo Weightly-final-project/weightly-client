@@ -210,7 +210,7 @@ export default function CameraScreen() {
 
       if (mode === 'side'){
         x_splits = 7;
-        y_splits = 3;
+        y_splits = 2;
         confidenceThreshold = 0.3;
       }
 
