@@ -1,23 +1,16 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
-import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js';
+import * as AmplifyAuth from '@aws-amplify/auth';
+import type { AuthUser, AuthFlowType } from '@aws-amplify/auth';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { configureAmplify } from './amplifyConfig';
 
-// Configure Cognito
-const poolData = {
-  UserPoolId: process.env.EXPO_PUBLIC_COGNITO_USER_POOL_ID || '',
-  ClientId: process.env.EXPO_PUBLIC_COGNITO_CLIENT_ID || '',
-};
-
-console.log("============ AUTH CONFIGURATION ============");
-console.log("User Pool ID:", poolData.UserPoolId);
-console.log("Client ID:", poolData.ClientId);
-
-const userPool = new CognitoUserPool(poolData);
+// Configure Amplify
+configureAmplify();
 
 type AuthContextType = {
   isLoading: boolean;
   isAuthenticated: boolean;
-  user: any;
+  user: AuthUser | null;
   signIn: (username: string, password: string) => Promise<any>;
   signUp: (
     username: string,
@@ -27,8 +20,8 @@ type AuthContextType = {
     familyName: string
   ) => Promise<any>;
   confirmSignUp: (username: string, code: string) => Promise<any>;
-  verifyCode: (username: string, code: string) => Promise<void>;
-  resendConfirmationCode: (username: string) => Promise<void>;
+  verifyCode: (username: string, code: string) => Promise<any>;
+  resendConfirmationCode: (username: string) => Promise<any>;
   signOut: () => Promise<void>;
   forgotPassword: (username: string) => Promise<any>;
   forgotPasswordSubmit: (
@@ -70,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     checkAuthState();
@@ -79,46 +72,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const checkAuthState = async () => {
     setIsLoading(true);
     try {
-      const cognitoUser = userPool.getCurrentUser();
-      if (cognitoUser) {
-        cognitoUser.getSession((err: any, session: any) => {
-          if (err) {
-            debugLog('Session error:', err);
-            setIsAuthenticated(false);
-            setUser(null);
-          } else if (session.isValid()) {
-            debugLog('Valid session found');
-            cognitoUser.getUserAttributes((err: any, attributes: any) => {
-              if (err) {
-                debugLog('Error getting user attributes:', err);
-                setIsAuthenticated(false);
-                setUser(null);
-              } else {
-                const userData = {
-                  username: cognitoUser.getUsername(),
-                  attributes: attributes.reduce((acc: any, attr: any) => {
-                    acc[attr.Name] = attr.Value;
-                    return acc;
-                  }, {})
-                };
-                debugLog('User authenticated:', userData);
-                setIsAuthenticated(true);
-                setUser(userData);
-              }
-            });
-          } else {
-            debugLog('Session invalid');
-            setIsAuthenticated(false);
-            setUser(null);
-          }
-        });
-      } else {
-        debugLog('No current user');
-        setIsAuthenticated(false);
-        setUser(null);
+      const currentUser = await AmplifyAuth.getCurrentUser();
+      if (currentUser) {
+        debugLog('Valid session found');
+        setIsAuthenticated(true);
+        setUser(currentUser);
       }
     } catch (error) {
-      debugLog('Error checking auth state:', error);
+      debugLog('No current user or session invalid:', error);
       setIsAuthenticated(false);
       setUser(null);
     } finally {
@@ -130,98 +91,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsLoading(true);
     
     try {
-      debugLog('Attempting sign in...');
+      debugLog('=== Starting Sign In Process ===');
+      debugLog('Attempting sign in for username:', username);
       
-      const authenticationDetails = new AuthenticationDetails({
-        Username: username,
-        Password: password,
-      });
-
-      const cognitoUser = new CognitoUser({
-        Username: username,
-        Pool: userPool,
-      });
-
-      // Convert callback-based API to Promise to make it easier to handle
-      const userData = await new Promise<any>((resolve, reject) => {
-        cognitoUser.authenticateUser(authenticationDetails, {
-          onSuccess: (session) => {
-            debugLog('Sign in successful:', session);
-            cognitoUser.getUserAttributes((err: any, attributes: any) => {
-              if (err) {
-                debugLog('Error getting user attributes:', err);
-                reject(err);
-              } else {
-                const userData = {
-                  username: cognitoUser.getUsername(),
-                  attributes: attributes.reduce((acc: any, attr: any) => {
-                    acc[attr.Name] = attr.Value;
-                    return acc;
-                  }, {})
-                };
-                resolve(userData);
-              }
-            });
-          },
-          onFailure: (err) => {
-            debugLog('Sign in failed:', err);
-            reject(err);
-          },
-          newPasswordRequired: (userAttributes, requiredAttributes) => {
-            debugLog('New password required');
-            reject(new Error('New password required'));
-          },
-          mfaRequired: (challengeName, challengeParameters) => {
-            debugLog('MFA required');
-            reject(new Error('MFA required'));
-          },
-          totpRequired: (challengeName, challengeParameters) => {
-            debugLog('TOTP required');
-            reject(new Error('TOTP required'));
-          },
-          selectMFAType: (challengeName, challengeParameters) => {
-            debugLog('Select MFA type');
-            reject(new Error('Select MFA type'));
-          },
-        });
-      });
-
-      // Update authentication state forcefully
-      debugLog('Auth successful, updating state synchronously');
-      
-      // Set the user and isAuthenticated in a single batched update if possible
-      // to minimize re-renders and ensure state coherence
-      setUser(userData);
-      setIsAuthenticated(true);
-      
-      // Update local storage too in case there's a persistence issue
+      // Clear any existing sessions first
       try {
-        await AsyncStorage.setItem('authenticated', 'true');
-        await AsyncStorage.setItem('user', JSON.stringify(userData));
-      } catch (storageError) {
-        debugLog('Warning: Could not save auth state to storage', storageError);
+        await AmplifyAuth.signOut();
+        debugLog('Cleared existing session');
+      } catch (signOutError) {
+        debugLog('No existing session to clear');
       }
       
-      // Complete the login process
-      setIsLoading(false);
-      debugLog('Authentication state update complete');
+      // Attempt sign in with username and password
+      const signInResult = await AmplifyAuth.signIn({
+        username,
+        password,
+        options: {
+          // @ts-ignore - type is not exported but is supported
+          authFlowType: "USER_PASSWORD_AUTH"
+        }
+      });
       
-      debugLog('Authentication complete, returning userData');
-      return userData;
+      debugLog('Sign in attempt result:', {
+        isSignedIn: signInResult.isSignedIn,
+        nextStep: signInResult.nextStep
+      });
+
+      if (signInResult.isSignedIn) {
+        const currentUser = await AmplifyAuth.getCurrentUser();
+        debugLog('Successfully signed in user:', currentUser);
+        
+        setUser(currentUser);
+        setIsAuthenticated(true);
+        
+        try {
+          await AsyncStorage.setItem('authenticated', 'true');
+          await AsyncStorage.setItem('user', JSON.stringify(currentUser));
+          debugLog('Successfully stored auth state');
+        } catch (storageError) {
+          debugLog('Warning: Could not save auth state to storage:', storageError);
+        }
+        
+        return currentUser;
+      }
+      
+      throw new Error('Sign in failed: Authentication incomplete');
     } catch (error) {
-      debugLog('Sign in error:', error);
-      setIsLoading(false);
+      debugLog('=== Sign In Error Details ===');
+      if (error instanceof Error) {
+        debugLog('Error type:', error.constructor.name);
+        debugLog('Error name:', error.name);
+        debugLog('Error message:', error.message);
+        debugLog('Error stack:', error.stack);
+      }
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSignOut = async (): Promise<void> => {
-    const cognitoUser = userPool.getCurrentUser();
-    if (cognitoUser) {
-      cognitoUser.signOut();
+    try {
+      await AmplifyAuth.signOut();
+      setIsAuthenticated(false);
+      setUser(null);
+    } catch (error) {
+      debugLog('Sign out error:', error);
+      throw error;
     }
-    setIsAuthenticated(false);
-    setUser(null);
   };
 
   return (
@@ -232,101 +169,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         user,
         signIn: handleSignIn,
         signUp: async (username, password, email, phoneNumber, familyName) => {
-          return new Promise((resolve, reject) => {
-            const attributeList = [
-              new CognitoUserAttribute({ Name: 'email', Value: email }),
-              new CognitoUserAttribute({ Name: 'phone_number', Value: phoneNumber }),
-              new CognitoUserAttribute({ Name: 'family_name', Value: familyName }),
-              new CognitoUserAttribute({ Name: 'name', Value: username }),
-            ];
-            const validationData: CognitoUserAttribute[] = [];
-            userPool.signUp(
+          try {
+            return await AmplifyAuth.signUp({
               username,
               password,
-              attributeList,
-              validationData,
-              (err, result) => {
-                if (err) {
-                  reject(err);
-                } else {
-                  resolve(result);
+              options: {
+                userAttributes: {
+                  email,
+                  phone_number: phoneNumber,
+                  family_name: familyName,
+                  name: username,
                 }
               }
-            );
-          });
+            });
+          } catch (error) {
+            debugLog('Sign up error:', error);
+            throw error;
+          }
         },
         confirmSignUp: async (username, code) => {
-          return new Promise((resolve, reject) => {
-            const cognitoUser = new CognitoUser({
-              Username: username,
-              Pool: userPool,
+          try {
+            return await AmplifyAuth.confirmSignUp({
+              username,
+              confirmationCode: code
             });
-            cognitoUser.confirmRegistration(code, true, (err, result) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve(result);
-              }
-            });
-          });
+          } catch (error) {
+            debugLog('Confirm sign up error:', error);
+            throw error;
+          }
         },
         verifyCode: async (username, code) => {
-          return new Promise((resolve, reject) => {
-            const cognitoUser = new CognitoUser({
-              Username: username,
-              Pool: userPool,
+          try {
+            return await AmplifyAuth.confirmSignUp({
+              username,
+              confirmationCode: code
             });
-            cognitoUser.confirmRegistration(code, true, (err, result) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve(result);
-              }
-            });
-          });
+          } catch (error) {
+            debugLog('Verify code error:', error);
+            throw error;
+          }
         },
         resendConfirmationCode: async (username) => {
-          return new Promise((resolve, reject) => {
-            const cognitoUser = new CognitoUser({
-              Username: username,
-              Pool: userPool,
+          try {
+            return await AmplifyAuth.resendSignUpCode({
+              username
             });
-            cognitoUser.resendConfirmationCode((err, result) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve(result);
-              }
-            });
-          });
+          } catch (error) {
+            debugLog('Resend code error:', error);
+            throw error;
+          }
         },
         signOut: handleSignOut,
         forgotPassword: async (username) => {
-          return new Promise((resolve, reject) => {
-            const cognitoUser = new CognitoUser({
-              Username: username,
-              Pool: userPool,
+          try {
+            return await AmplifyAuth.resetPassword({
+              username
             });
-            cognitoUser.forgotPassword({
-              onSuccess: (result) => resolve(result),
-              onFailure: (err) => reject(err),
-            });
-          });
+          } catch (error) {
+            debugLog('Forgot password error:', error);
+            throw error;
+          }
         },
         forgotPasswordSubmit: async (username, code, newPassword) => {
-          return new Promise((resolve, reject) => {
-            const cognitoUser = new CognitoUser({
-              Username: username,
-              Pool: userPool,
+          try {
+            return await AmplifyAuth.confirmResetPassword({
+              username,
+              confirmationCode: code,
+              newPassword
             });
-            cognitoUser.confirmPassword(code, newPassword, {
-              onSuccess: () => resolve(),
-              onFailure: (err) => reject(err),
-            });
-          });
+          } catch (error) {
+            debugLog('Forgot password submit error:', error);
+            throw error;
+          }
         },
         devBypassLogin: async (username) => {
-          setUser({ username });
+          setUser({ username } as AuthUser);
           setIsAuthenticated(true);
           return { isSignedIn: true };
         }
