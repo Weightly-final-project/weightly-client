@@ -9,6 +9,9 @@ jobs:
   build:
     name: Build Apps
     runs-on: ubuntu-latest
+    env:
+      CI: 1
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - uses: actions/checkout@v3
 
@@ -37,9 +40,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Log in to Expo
-        run: npx expo login --non-interactive
-
       - name: Build Android
         run: eas build --platform android --profile preview --non-interactive
 
@@ -48,7 +48,5 @@ jobs:
 
       - name: Get build URL
         run: |
-          echo "Android build completed! Check the build at:"
-          echo "https://expo.dev/accounts/orbasker/projects/Weightly-client/builds"
-          echo "iOS build completed! Check the build at:"
+          echo "Builds completed! Check them at:"
           echo "https://expo.dev/accounts/orbasker/projects/Weightly-client/builds" 
