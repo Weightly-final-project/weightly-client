@@ -17,6 +17,9 @@ jobs:
           node-version: 18.x
           cache: 'npm'
 
+      - name: Install EAS CLI globally
+        run: npm install -g eas-cli
+
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
         with:
@@ -34,11 +37,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Log in to Expo
+        run: npx expo login --non-interactive
+
       - name: Build Android
-        run: npx eas build --platform android --profile preview --non-interactive
+        run: eas build --platform android --profile preview --non-interactive
 
       - name: Build iOS
-        run: npx eas build --platform ios --profile preview --non-interactive
+        run: eas build --platform ios --profile preview --non-interactive
 
       - name: Get build URL
         run: |
