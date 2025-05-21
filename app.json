@@ -12,9 +12,10 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "$(PRODUCT_NAME) needs access to your Camera.",
-        "NSMicrophoneUsageDescription": "$(PRODUCT_NAME) needs access to your Microphone."
+        "NSMicrophoneUsageDescription": "$(PRODUCT_NAME) needs access to your Microphone.",
+        "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.anonymous.Weightlyclient"
+      "bundleIdentifier": "com.weightly.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +26,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.Weightlyclient"
+      "package": "com.weightly.app"
     },
     "web": {
       "bundler": "metro",
@@ -74,8 +75,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "dd10c0eb-9704-4af2-b4f8-d26b51f8278c"
+        "projectId": "5a37e9c6-03da-4b87-ae44-88554c31adba"
       }
-    }
+    },
+    "owner": "orbasker"
   }
 }

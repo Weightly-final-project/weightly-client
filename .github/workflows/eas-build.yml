@@ -1,0 +1,131 @@
+name: EAS Build
+on:
+  push:
+    branches:
+      - main
+      - firebase-distribute
+
+jobs:
+  setup:
+    name: Setup Environment
+    runs-on: ubuntu-latest
+    outputs:
+      env_file: ${{ steps.create_env.outputs.env_file }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check Required Secrets
+        run: |
+          echo "Checking required secrets..."
+          [ -n "${{ secrets.EXPO_TOKEN }}" ] || echo "Warning: EXPO_TOKEN is not set"
+          [ -n "${{ secrets.EXPO_PUBLIC_COGNITO_USER_POOL_ID }}" ] || echo "Warning: EXPO_PUBLIC_COGNITO_USER_POOL_ID is not set"
+          [ -n "${{ secrets.EXPO_PUBLIC_COGNITO_CLIENT_ID }}" ] || echo "Warning: EXPO_PUBLIC_COGNITO_CLIENT_ID is not set"
+          [ -n "${{ secrets.EXPO_PUBLIC_AWS_ACCESS_KEY_ID }}" ] || echo "Warning: EXPO_PUBLIC_AWS_ACCESS_KEY_ID is not set"
+          [ -n "${{ secrets.EXPO_PUBLIC_AWS_SECRET_ACCESS_KEY }}" ] || echo "Warning: EXPO_PUBLIC_AWS_SECRET_ACCESS_KEY is not set"
+
+      - name: Create .env file
+        id: create_env
+        run: |
+          echo "Creating test .env file..."
+          cat << EOF > .env
+          EXPO_PUBLIC_COGNITO_USER_POOL_ID=test_pool_id
+          EXPO_PUBLIC_COGNITO_CLIENT_ID=test_client_id
+          EXPO_PUBLIC_AWS_ACCESS_KEY_ID=test_access_key
+          EXPO_PUBLIC_AWS_SECRET_ACCESS_KEY=test_secret_key
+          EXPO_PUBLIC_API_URL=https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com
+          EOF
+          echo "env_file=$(cat .env | base64)" >> $GITHUB_OUTPUT
+
+  test-setup:
+    needs: setup
+    name: Test Build Setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          cache: 'npm'
+
+      - name: Restore .env file
+        run: |
+          echo "${{ needs.setup.outputs.env_file }}" | base64 -d > .env
+          echo "Contents of .env file:"
+          cat .env
+
+      - name: Install dependencies
+        run: |
+          echo "Installing dependencies..."
+          npm install --dry-run
+
+      - name: Test EAS configuration
+        run: |
+          echo "Testing EAS configuration..."
+          npx eas-cli --version
+          echo "Would build for Android with profile: preview"
+          echo "Would build for iOS with profile: preview"
+
+  build-android:
+    needs: setup
+    name: Build Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          cache: 'npm'
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Restore .env file
+        run: echo "${{ needs.setup.outputs.env_file }}" | base64 -d > .env
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Android
+        run: npx eas build --platform android --profile preview --non-interactive
+        
+      - name: Get build URL
+        run: |
+          echo "Android build completed! Check the build at:"
+          echo "https://expo.dev/accounts/orbasker/projects/Weightly-client/builds"
+
+  build-ios:
+    needs: setup
+    name: Build iOS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          cache: 'npm'
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Restore .env file
+        run: echo "${{ needs.setup.outputs.env_file }}" | base64 -d > .env
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build iOS
+        run: npx eas build --platform ios --profile preview --non-interactive
+        
+      - name: Get build URL
+        run: |
+          echo "iOS build completed! Check the build at:"
+          echo "https://expo.dev/accounts/orbasker/projects/Weightly-client/builds" 
