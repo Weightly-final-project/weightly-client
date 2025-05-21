@@ -51,6 +51,12 @@ interface CapturedPhoto {
   };
 }
 
+export interface Split {
+  x_splits: number;
+  y_splits: number;
+  confidenceThreshold: number;
+}
+
 interface PhotoToProcess {
   photo: CameraCapturedPicture | undefined;
   processed?: boolean;
@@ -60,6 +66,19 @@ interface PhotoToProcess {
     predictions: any[];
   };
 }
+
+const defaultSplitsConfig: { [key in PhotoMode]: Split } = {
+  'front': {
+    x_splits: 1,
+    y_splits: 1,
+    confidenceThreshold: 0.5,
+  },
+  'side': {
+    x_splits: 7,
+    y_splits: 2,
+    confidenceThreshold: 0.3,
+  },
+};
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -74,6 +93,7 @@ export default function CameraScreen() {
   const [mode, setMode] = useState<PhotoMode>('front');
   const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
+  const [splits, setSplits] = useState<Split>(defaultSplitsConfig[mode]);
 
   const [permission, requestPermissions] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -97,6 +117,7 @@ export default function CameraScreen() {
     if (capturedPhotos.length === 0) {
       setCurrentPhotoIndex(0);
     }
+    setSplits(defaultSplitsConfig[mode]);
   }, [mode]);
 
   if (!permission || !permission.granted) {
@@ -206,13 +227,7 @@ export default function CameraScreen() {
         photo.photo.uri,
         `original_images/${userId}_${Date.now()}_image${currentPhotoIndex + 1}.jpg`
       );
-      let x_splits = 1, y_splits = 1, confidenceThreshold = 0.5;
-
-      if (mode === 'side'){
-        x_splits = 7;
-        y_splits = 2;
-        confidenceThreshold = 0.3;
-      }
+      const { x_splits, y_splits, confidenceThreshold } = splits;
 
       const formData1 = {
         user: userId,
@@ -443,6 +458,28 @@ export default function CameraScreen() {
           style={styles.camera}
         />
         <View style={styles.rectangle}></View>
+        <View style={styles.cage}>
+          {Array.from({ length: splits.x_splits + 1 }, (_, i) => (
+            <View
+              key={`v-${i}`}
+              style={[styles.gridCell, {
+                left: (width / splits.x_splits) * i,
+                height,
+                width: 2,
+              }]}
+            />
+          ))}
+          {Array.from({ length: splits.y_splits + 1 }, (_, i) => (
+            <View
+              key={`h-${i}`}
+              style={[styles.gridCell, {
+                top: (height / splits.y_splits) * i,
+                width,
+                height: 2,
+              }]}
+            />
+          ))}
+        </View>
         <View style={styles.cameraOverlay}>
           <View style={styles.guideContainer}>
             <GyroGuide
@@ -458,7 +495,7 @@ export default function CameraScreen() {
             <View style={styles.instructionsContainer}>
               <Text style={styles.instructionsText}>{getPhotoInstructions()}</Text>
               <Text style={styles.photoCountText}>
-                Photo {currentPhotoIndex + 1} of {requiredPhotos}
+                Take photo inside the rectangle
               </Text>
             </View>
             <CameraControls
@@ -475,7 +512,10 @@ export default function CameraScreen() {
                 processPhoto(newPhoto);
                 setMode('side');
               }}
+              setSplits={setSplits}
+              splits={splits}
               isProcessing={isProcessing}
+              isOrientationValid={isOrientationValid}
             />
           </View>
         </View>
@@ -593,6 +633,19 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: 12,
     zIndex: 0,
+  },
+  cage: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: width,
+    height: height,
+    zIndex: 0,
+  },
+  gridCell: {
+    position: 'absolute',
+    top: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
   cameraHeader: {
     flexDirection: "row",
