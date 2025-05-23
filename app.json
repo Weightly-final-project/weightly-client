@@ -13,9 +13,16 @@
       "infoPlist": {
         "NSCameraUsageDescription": "$(PRODUCT_NAME) needs access to your Camera.",
         "NSMicrophoneUsageDescription": "$(PRODUCT_NAME) needs access to your Microphone.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "$(PRODUCT_NAME) needs access to your photos for image uploads.",
+        "NSPhotoLibraryAddUsageDescription": "$(PRODUCT_NAME) needs access to save photos.",
+        "UIBackgroundModes": ["camera"]
       },
-      "bundleIdentifier": "com.weightly.app"
+      "bundleIdentifier": "com.weightly.app",
+      "buildConfiguration": {
+        "enableBitcode": false,
+        "enableAutomaticSigning": true
+      }
     },
     "android": {
       "adaptiveIcon": {

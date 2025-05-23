@@ -17,7 +17,13 @@
         "buildType": "apk"
       },
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "image": "latest",
+        "cache": {
+          "disabled": true
+        },
+        "buildConfiguration": "Debug",
+        "resourceClass": "m1-medium"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com"

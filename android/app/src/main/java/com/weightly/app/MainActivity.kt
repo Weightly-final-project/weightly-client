@@ -1,4 +1,4 @@
-package com.anonymous.Weightlyclient
+package com.weightly.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
