@@ -17,7 +17,7 @@ import {
   StatusBar,
   ScrollView,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { getFile, uploadFile } from "../utils/s3";
 import { hooks } from "../utils/api";
 import Permission from "../components/Permission";
@@ -51,11 +51,11 @@ interface CapturedPhoto {
   };
 }
 
-export interface Split {
+export type Split = {
   x_splits: number;
   y_splits: number;
   confidenceThreshold: number;
-}
+};
 
 interface PhotoToProcess {
   photo: CameraCapturedPicture | undefined;
@@ -82,6 +82,7 @@ const defaultSplitsConfig: { [key in PhotoMode]: Split } = {
 
 export default function CameraScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { user } = useAuth();
   const userId = user?.username || "guest";
 
@@ -101,9 +102,36 @@ export default function CameraScreen() {
   const predictMutation = usePredictMutation();
   const outputImageMutation = useOutput_imageMutation();
   const referenceCalculatorMutation = useReference_calculatorMutation();
-  const bboxRefinementMutation = useBbox_refinementMutation(); ``
+  const bboxRefinementMutation = useBbox_refinementMutation();
 
-  const requiredPhotos = 2;
+  useEffect(() => {
+    const loadExistingPhotos = async () => {
+      try {
+        if (params.existingPhotos) {
+          const decodedPhotos = JSON.parse(Buffer.from(params.existingPhotos as string, 'base64').toString());
+          setCapturedPhotos(decodedPhotos);
+          
+          if (params.photoIndex) {
+            const index = parseInt(params.photoIndex as string);
+            setCurrentPhotoIndex(index);
+            setMode(index === 0 ? 'front' : 'side');
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing photos:', error);
+      }
+    };
+
+    loadExistingPhotos();
+  }, [params.existingPhotos, params.photoIndex]);
+
+  // Add check for single photo mode
+  const isSinglePhotoMode = params.singlePhotoMode === "true";
+  const requiredPhotos = isSinglePhotoMode ? currentPhotoIndex + 1 : 2;
+
+  useEffect(() => {
+    setSplits(defaultSplitsConfig[mode]);
+  }, [mode]);
 
   const getPhotoInstructions = () => {
     if (mode === 'front') {
@@ -111,14 +139,6 @@ export default function CameraScreen() {
     }
     return `Take a side photo of the object.`;
   };
-
-  useEffect(() => {
-    // Only reset photos if we're starting fresh
-    if (capturedPhotos.length === 0) {
-      setCurrentPhotoIndex(0);
-    }
-    setSplits(defaultSplitsConfig[mode]);
-  }, [mode]);
 
   if (!permission || !permission.granted) {
     return (
@@ -140,7 +160,7 @@ export default function CameraScreen() {
       pathname: "/confirm-photos",
       params: {
         photos: Buffer.from(JSON.stringify(processedPhotos)).toString("base64"),
-        predictions: JSON.stringify(lastPhoto.annotatedImage.predictions),
+        predictions: params.predictions || JSON.stringify(lastPhoto.annotatedImage.predictions),
       },
     });
   };

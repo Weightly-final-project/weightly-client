@@ -9,13 +9,19 @@ import Animated, {
   runOnJS
 } from 'react-native-reanimated';
 
-interface ManualBoundingBoxProps {
+export interface ManualBoundingBoxProps {
   imageUri: string;
-  onBoundingBoxSelected: (bbox: { minX: number, minY: number, maxX: number, maxY: number }) => void;
+  onBoundingBoxSelected: (bbox: { minX: number; minY: number; maxX: number; maxY: number }) => void;
   onCancel: () => void;
+  initialBBox?: { minX: number; minY: number; maxX: number; maxY: number };
 }
 
-export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, onBoundingBoxSelected, onCancel }) => {
+export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({
+  imageUri,
+  onBoundingBoxSelected,
+  onCancel,
+  initialBBox,
+}) => {
   const [boxStart, setBoxStart] = useState<{ x: number; y: number } | null>(null);
   const [boxEnd, setBoxEnd] = useState<{ x: number; y: number } | null>(null);
   const [imageLayout, setImageLayout] = useState<{ width: number; height: number } | null>(null);
@@ -44,6 +50,19 @@ export const ManualBoundingBox: React.FC<ManualBoundingBoxProps> = ({ imageUri, 
   
   // Add a tip for tighter bounding box
   const [showTightBoxTip, setShowTightBoxTip] = useState(true);
+
+  useEffect(() => {
+    if (initialBBox && imageLayout) {
+      setBoxStart({
+        x: initialBBox.minX * imageLayout.width,
+        y: initialBBox.minY * imageLayout.height,
+      });
+      setBoxEnd({
+        x: initialBBox.maxX * imageLayout.width,
+        y: initialBBox.maxY * imageLayout.height,
+      });
+    }
+  }, [initialBBox, imageLayout]);
 
   // Function to calculate box coordinates
   const getBoxCoordinates = () => {
