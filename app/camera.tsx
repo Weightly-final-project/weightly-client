@@ -1,5 +1,5 @@
 import type React from "react";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import {
   CameraView,
   useCameraPermissions,
@@ -80,59 +80,247 @@ const defaultSplitsConfig: { [key in PhotoMode]: Split } = {
   },
 };
 
-export default function CameraScreen() {
+// Custom hook to handle all navigation-related state
+function useNavigationState() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { user } = useAuth();
-  const userId = user?.username || "guest";
+  
+  // Memoize the values we derive from params
+  const navigationState = useMemo(() => {
+    const isSinglePhotoMode = params.singlePhotoMode === "true";
+    const userId = user?.username || "guest";
+    
+    return {
+      router,
+      params,
+      userId,
+      isSinglePhotoMode,
+      existingPhotos: params.existingPhotos ? 
+        JSON.parse(Buffer.from(params.existingPhotos as string, 'base64').toString()) : 
+        [],
+      photoIndex: params.photoIndex ? parseInt(params.photoIndex as string) : 0,
+    };
+  }, [router, params, user]);
 
+  return navigationState;
+}
+
+// Separate the main camera screen logic into its own component
+function CameraScreenContent() {
+  const {
+    router,
+    params,
+    userId,
+    isSinglePhotoMode,
+    existingPhotos: initialExistingPhotos,
+    photoIndex: initialPhotoIndex,
+  } = useNavigationState();
+  const { user } = useAuth();
+  
+  // Initialize all state first, before any conditional logic
   const [pictureStatus, setPictureStatus] = useState<string>("Ready to capture");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [showManualBoundingBox, setShowManualBoundingBox] = useState(false);
   const [isGyroValid, setIsGyroValid] = useState(false);
   const [isOrientationValid, setIsOrientationValid] = useState(false);
   const [mode, setMode] = useState<PhotoMode>('front');
-  const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
-  const [splits, setSplits] = useState<Split>(defaultSplitsConfig[mode]);
+  const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>(initialExistingPhotos);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(initialPhotoIndex);
+  const [splits, setSplits] = useState<Split>(defaultSplitsConfig['front']);
 
   const [permission, requestPermissions] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
 
+  // Initialize mutations
   const predictMutation = usePredictMutation();
   const outputImageMutation = useOutput_imageMutation();
   const referenceCalculatorMutation = useReference_calculatorMutation();
   const bboxRefinementMutation = useBbox_refinementMutation();
 
-  useEffect(() => {
-    const loadExistingPhotos = async () => {
-      try {
-        if (params.existingPhotos) {
-          const decodedPhotos = JSON.parse(Buffer.from(params.existingPhotos as string, 'base64').toString());
-          setCapturedPhotos(decodedPhotos);
-          
-          if (params.photoIndex) {
-            const index = parseInt(params.photoIndex as string);
-            setCurrentPhotoIndex(index);
-            setMode(index === 0 ? 'front' : 'side');
-          }
-        }
-      } catch (error) {
-        console.error('Error loading existing photos:', error);
-      }
-    };
+  // Memoize derived values
+  const requiredPhotos = useMemo(() => 
+    isSinglePhotoMode ? currentPhotoIndex + 1 : 2,
+    [isSinglePhotoMode, currentPhotoIndex]
+  );
 
-    loadExistingPhotos();
+  // Navigation helper
+  const navigateToPrediction = useCallback((processedPhotos: CapturedPhoto[]) => {
+    const lastPhoto = processedPhotos[processedPhotos.length - 1];
+    if (!lastPhoto?.annotatedImage?.image_s3_uri || !lastPhoto?.annotatedImage?.annotated_s3_uri) return;
+
+    router.replace({
+      pathname: "/confirm-photos",
+      params: {
+        photos: Buffer.from(JSON.stringify(processedPhotos)).toString("base64"),
+        predictions: params.predictions || JSON.stringify(lastPhoto.annotatedImage.predictions),
+      },
+    });
+  }, [router, params.predictions]);
+
+  // Define processAnnotationData with access to all required values
+  const processAnnotationData = useCallback(async (bboxDataString: string, imageUriFromAnnotation: string) => {
+    setIsProcessing(true);
+    setPictureStatus("Processing manual drawing...");
+
+    try {
+      const drawnBoxes = JSON.parse(bboxDataString);
+      if (!drawnBoxes || drawnBoxes.length === 0) {
+        Alert.alert("No Bounding Boxes", "No bounding boxes were drawn.");
+        return;
+      }
+
+      const photoToUpdate = capturedPhotos[currentPhotoIndex];
+      if (!photoToUpdate || photoToUpdate.photo.uri !== imageUriFromAnnotation) {
+        Alert.alert("Error", "Photo mismatch when processing manual drawing.");
+        return;
+      }
+
+      const s3UploadResponse = await uploadFile(
+        imageUriFromAnnotation,
+        `original_images/${userId}_${Date.now()}_annotated_image${currentPhotoIndex + 1}.jpg`
+      );
+      const imageS3Uri = `s3://weighlty/${s3UploadResponse.Key}`;
+
+      let finalPredictions: any[] = [];
+      const rubiksCubeBox = drawnBoxes.find((b: any) => b.label === "Rubkis cube");
+      const woodStackBox = drawnBoxes.find((b: any) => b.label === "wood stack");
+
+      if (rubiksCubeBox && woodStackBox) {
+        setPictureStatus("Calculating size with reference object...");
+        const referenceObjectForCalc = {
+          bbox: [rubiksCubeBox.x, rubiksCubeBox.y, rubiksCubeBox.x + rubiksCubeBox.width, rubiksCubeBox.y + rubiksCubeBox.height],
+          object: "rubiks_cube",
+          confidence: 1.0,
+        };
+
+        let refinedReferenceBbox = referenceObjectForCalc.bbox;
+        try {
+          const refinedResult = await bboxRefinementMutation.mutateAsync({
+            bbox: referenceObjectForCalc.bbox,
+            image_s3_uri: imageS3Uri,
+          }) as any;
+          refinedReferenceBbox = refinedResult.refined_bbox || referenceObjectForCalc.bbox;
+        } catch (refineError) {
+          console.warn("BBox refinement for Rubik's cube failed:", refineError);
+        }
+
+        const woodStackForCalc = {
+          bbox: [woodStackBox.x, woodStackBox.y, woodStackBox.x + woodStackBox.width, woodStackBox.y + woodStackBox.height],
+          object: "pine",
+          confidence: 1.0,
+        };
+
+        const predictionsWithSize = await referenceCalculatorMutation.mutateAsync({
+          predictions: [woodStackForCalc],
+          reference_width_cm: 5.8,
+          reference_width_px: refinedReferenceBbox[2] - refinedReferenceBbox[0],
+          focal_length_px: 10,
+          reference_height_px: refinedReferenceBbox[3] - refinedReferenceBbox[1],
+        });
+
+        finalPredictions = [
+          ...Array.from(predictionsWithSize, x => ({ ...x })),
+          { ...referenceObjectForCalc, bbox: refinedReferenceBbox },
+        ];
+      } else {
+        finalPredictions = drawnBoxes.map((box: any) => ({
+          bbox: [box.x, box.y, box.x + box.width, box.y + box.height],
+          object: box.label === "Rubkis cube" ? "rubiks_cube" : "pine",
+          confidence: 1.0,
+        }));
+      }
+
+      setPictureStatus("Generating annotated image from drawing...");
+      const outputImageResult = await outputImageMutation.mutateAsync({
+        user: userId,
+        image_s3_uri: imageS3Uri,
+        predictions: finalPredictions,
+      });
+
+      if (outputImageResult.annotated_s3_uri) {
+        const downloadAnnotatedS3 = await getFile(
+          outputImageResult.annotated_s3_uri.split('/').splice(3).join('/')
+        );
+        const updatedPhotos = [...capturedPhotos];
+        updatedPhotos[currentPhotoIndex] = {
+          ...photoToUpdate,
+          processed: true,
+          annotatedImage: {
+            image_s3_uri: imageS3Uri,
+            annotated_s3_uri: outputImageResult.annotated_s3_uri,
+            download_annotated_s3_uri: downloadAnnotatedS3?.url,
+            predictions: finalPredictions,
+          },
+        };
+        setCapturedPhotos(updatedPhotos);
+
+        if (currentPhotoIndex + 1 < requiredPhotos) {
+          setCurrentPhotoIndex(currentPhotoIndex + 1);
+          setMode(mode === 'front' ? 'side' : 'front');
+        } else {
+          navigateToPrediction(updatedPhotos);
+        }
+      }
+    } catch (error) {
+      console.error("Error processing annotation data:", error);
+      Alert.alert("Processing Error", `Error processing manual drawing: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [
+    userId,
+    currentPhotoIndex,
+    requiredPhotos,
+    capturedPhotos,
+    mode,
+    bboxRefinementMutation,
+    referenceCalculatorMutation,
+    outputImageMutation,
+    navigateToPrediction
+  ]);
+
+  // Handle initial params in a single effect
+  useEffect(() => {
+    try {
+      if (params.existingPhotos) {
+        const decodedPhotos = JSON.parse(Buffer.from(params.existingPhotos as string, 'base64').toString());
+        setCapturedPhotos(decodedPhotos);
+      }
+      if (params.photoIndex) {
+        const index = parseInt(params.photoIndex as string);
+        setCurrentPhotoIndex(index);
+        setMode(index === 0 ? 'front' : 'side');
+      }
+    } catch (error) {
+      console.error('Error loading existing photos:', error);
+    }
   }, [params.existingPhotos, params.photoIndex]);
 
-  // Add check for single photo mode
-  const isSinglePhotoMode = params.singlePhotoMode === "true";
-  const requiredPhotos = isSinglePhotoMode ? currentPhotoIndex + 1 : 2;
-
+  // Handle splits based on mode
   useEffect(() => {
     setSplits(defaultSplitsConfig[mode]);
   }, [mode]);
 
+  // Handle annotation data in a single effect
+  useEffect(() => {
+    if (!params.bboxData || !params.processedImageUri) return;
+
+    const processData = async () => {
+      try {
+        await processAnnotationData(params.bboxData as string, params.processedImageUri as string);
+      } finally {
+        router.setParams({ 
+          bboxData: undefined, 
+          processedImageUri: undefined 
+        });
+      }
+    };
+
+    processData();
+  }, [params.bboxData, params.processedImageUri, processAnnotationData, router]);
+
+  // Memoize derived values
   const getPhotoInstructions = () => {
     if (mode === 'front') {
       return "Take a front photo of the object";
@@ -151,19 +339,6 @@ export default function CameraScreen() {
       </View>
     );
   }
-
-  const navigateToPrediction = (processedPhotos: CapturedPhoto[]) => {
-    const lastPhoto = processedPhotos[processedPhotos.length - 1];
-    if (!lastPhoto?.annotatedImage?.image_s3_uri || !lastPhoto?.annotatedImage?.annotated_s3_uri) return;
-
-    router.replace({
-      pathname: "/confirm-photos",
-      params: {
-        photos: Buffer.from(JSON.stringify(processedPhotos)).toString("base64"),
-        predictions: params.predictions || JSON.stringify(lastPhoto.annotatedImage.predictions),
-      },
-    });
-  };
 
   const handleManualBoundingBox = async (bbox: { minX: number, minY: number, maxX: number, maxY: number }) => {
     try {
@@ -461,9 +636,118 @@ export default function CameraScreen() {
       const updatedPhotos = [...capturedPhotos];
       updatedPhotos[currentPhotoIndex] = newPhoto;
       setCapturedPhotos(updatedPhotos);
-      // Process the photo
-      await processPhoto(newPhoto);
-      setMode('side');
+      
+      // Ask user for processing method upfront
+      Alert.alert(
+        "Choose Processing Method",
+        "How would you like to process the objects in this image?",
+        [
+          {
+            text: "AI (Automatic)",
+            onPress: async () => {
+              await processPhoto(newPhoto); // This contains its own fallback to ManualBoundingBox
+              // Mode setting for next photo is handled within processPhoto on AI success
+            }
+          },
+          {
+            text: "Manual Drawing",
+            onPress: () => {
+              setIsProcessing(false); 
+              setPictureStatus("Waiting for manual annotation...");
+              router.push({ 
+                  pathname: '/ImageAnnotationScreen', 
+                  params: { imageUri: photo.uri } 
+              });
+            }
+          },
+          {
+            text: "Cancel",
+            onPress: () => {
+                // User cancelled, remove the photo just added if it shouldn't persist
+                const newPhotos = capturedPhotos.filter((_, idx) => idx !== currentPhotoIndex);
+                setCapturedPhotos(newPhotos);
+                if (currentPhotoIndex === 0 && newPhotos.length === 0) {
+                    setMode('front'); // Reset to front if it was the first and only photo
+                }
+                // Adjust currentPhotoIndex if needed, though typically it might stay for a retake
+                setPictureStatus("Capture canceled. Ready to capture.");
+            },
+            style: "cancel"
+          }
+        ]
+      );
+    }
+  };
+
+  const handleLegacyManualBoxSelected = async (bbox: { minX: number, minY: number, maxX: number, maxY: number }) => {
+    try {
+      setIsProcessing(true);
+      setPictureStatus("Processing manual selection...");
+
+      const currentPhoto = capturedPhotos[currentPhotoIndex];
+      if (!currentPhoto) return;
+
+      const res1 = await uploadFile(
+        currentPhoto.photo.uri,
+        `original_images/${userId}_${Date.now()}_image${currentPhotoIndex + 1}.jpg`
+      );
+
+      const predictions_with_size = [
+        {
+          bbox: [bbox.minX * 1000, bbox.minY * 1000, bbox.maxX * 1000, bbox.maxY * 1000],
+          object: "pine",
+          confidence: 0.99,
+          size_cm: [30, 30, 30],
+        }
+      ];
+
+      setPictureStatus("Generating annotated image...");
+
+      const pred1 = await outputImageMutation.mutateAsync({
+        user: userId,
+        image_s3_uri: `s3://weighlty/${res1.Key}`,
+        predictions: predictions_with_size,
+      });
+
+      if (pred1.annotated_s3_uri) {
+        const updatedPhotos = [...capturedPhotos];
+        const download_annotated_s3 = await getFile(
+          pred1.annotated_s3_uri.split('/').splice(3).join('/')
+        );
+        updatedPhotos[currentPhotoIndex] = {
+          ...currentPhoto,
+          processed: true,
+          annotatedImage: {
+            image_s3_uri: `s3://weighlty/${res1.Key}`,
+            annotated_s3_uri: pred1.annotated_s3_uri,
+            download_annotated_s3_uri: download_annotated_s3?.url,
+            predictions: predictions_with_size,
+          },
+        };
+        setCapturedPhotos(updatedPhotos);
+
+        if (currentPhotoIndex + 1 < requiredPhotos) {
+          setCurrentPhotoIndex(currentPhotoIndex + 1);
+          setIsProcessing(false);
+        } else {
+          setPictureStatus("Preparing results...");
+          // Navigate to confirmation page immediately
+          navigateToPrediction(updatedPhotos);
+        }
+
+        setShowManualBoundingBox(false);
+      } else {
+        throw new Error("Failed to generate annotated image");
+      }
+    } catch (error) {
+      console.error(error);
+      setPictureStatus("Error processing manual selection");
+      Alert.alert(
+        "Processing Error",
+        "There was an error processing your manual selection. Please try again.",
+        [{ text: "OK" }]
+      );
+      setIsProcessing(false);
     }
   };
 
@@ -581,7 +865,7 @@ export default function CameraScreen() {
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
             <ManualBoundingBox
               imageUri={capturedPhotos[currentPhotoIndex].photo.uri}
-              onBoundingBoxSelected={handleManualBoundingBox}
+              onBoundingBoxSelected={handleLegacyManualBoxSelected}
               onCancel={() => {
                 setShowManualBoundingBox(false);
                 setIsProcessing(false);
@@ -592,6 +876,231 @@ export default function CameraScreen() {
       </View>
     </View>
   );
+}
+
+// Main export wraps the content in a stable initialization check
+export default function CameraScreen() {
+  // Core hooks that must be called every render
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const { user } = useAuth();
+  const userId = user?.username || "guest";
+
+  // Initialize all state first
+  const [pictureStatus, setPictureStatus] = useState<string>("Ready to capture");
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [showManualBoundingBox, setShowManualBoundingBox] = useState(false);
+  const [isGyroValid, setIsGyroValid] = useState(false);
+  const [isOrientationValid, setIsOrientationValid] = useState(false);
+  const [mode, setMode] = useState<PhotoMode>('front');
+  const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
+  const [splits, setSplits] = useState<Split>(defaultSplitsConfig['front']);
+
+  // Camera permissions and ref
+  const [permission, requestPermissions] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
+
+  // Initialize mutations
+  const predictMutation = usePredictMutation();
+  const outputImageMutation = useOutput_imageMutation();
+  const referenceCalculatorMutation = useReference_calculatorMutation();
+  const bboxRefinementMutation = useBbox_refinementMutation();
+
+  // Memoize derived values
+  const isSinglePhotoMode = useMemo(() => params.singlePhotoMode === "true", [params.singlePhotoMode]);
+  const requiredPhotos = useMemo(() => 
+    isSinglePhotoMode ? currentPhotoIndex + 1 : 2,
+    [isSinglePhotoMode, currentPhotoIndex]
+  );
+
+  // Navigation helper
+  const navigateToPrediction = useCallback((processedPhotos: CapturedPhoto[]) => {
+    const lastPhoto = processedPhotos[processedPhotos.length - 1];
+    if (!lastPhoto?.annotatedImage?.image_s3_uri || !lastPhoto?.annotatedImage?.annotated_s3_uri) return;
+
+    router.replace({
+      pathname: "/confirm-photos",
+      params: {
+        photos: Buffer.from(JSON.stringify(processedPhotos)).toString("base64"),
+        predictions: params.predictions || JSON.stringify(lastPhoto.annotatedImage.predictions),
+      },
+    });
+  }, [router, params.predictions]);
+
+  // Handle initial params
+  useEffect(() => {
+    try {
+      if (params.existingPhotos) {
+        const decodedPhotos = JSON.parse(Buffer.from(params.existingPhotos as string, 'base64').toString());
+        setCapturedPhotos(decodedPhotos);
+      }
+      if (params.photoIndex) {
+        const index = parseInt(params.photoIndex as string);
+        setCurrentPhotoIndex(index);
+        setMode(index === 0 ? 'front' : 'side');
+      }
+    } catch (error) {
+      console.error('Error loading existing photos:', error);
+    }
+  }, [params.existingPhotos, params.photoIndex]);
+
+  // Handle splits based on mode
+  useEffect(() => {
+    setSplits(defaultSplitsConfig[mode]);
+  }, [mode]);
+
+  // Process annotation data
+  const processAnnotationData = useCallback(async (bboxDataString: string, imageUriFromAnnotation: string) => {
+    setIsProcessing(true);
+    setPictureStatus("Processing manual drawing...");
+
+    try {
+      const drawnBoxes = JSON.parse(bboxDataString);
+      if (!drawnBoxes || drawnBoxes.length === 0) {
+        Alert.alert("No Bounding Boxes", "No bounding boxes were drawn.");
+        return;
+      }
+
+      const photoToUpdate = capturedPhotos[currentPhotoIndex];
+      if (!photoToUpdate || photoToUpdate.photo.uri !== imageUriFromAnnotation) {
+        Alert.alert("Error", "Photo mismatch when processing manual drawing.");
+        return;
+      }
+
+      const s3UploadResponse = await uploadFile(
+        imageUriFromAnnotation,
+        `original_images/${userId}_${Date.now()}_annotated_image${currentPhotoIndex + 1}.jpg`
+      );
+      const imageS3Uri = `s3://weighlty/${s3UploadResponse.Key}`;
+
+      let finalPredictions: any[] = [];
+      const rubiksCubeBox = drawnBoxes.find((b: any) => b.label === "Rubkis cube");
+      const woodStackBox = drawnBoxes.find((b: any) => b.label === "wood stack");
+
+      if (rubiksCubeBox && woodStackBox) {
+        setPictureStatus("Calculating size with reference object...");
+        const referenceObjectForCalc = {
+          bbox: [rubiksCubeBox.x, rubiksCubeBox.y, rubiksCubeBox.x + rubiksCubeBox.width, rubiksCubeBox.y + rubiksCubeBox.height],
+          object: "rubiks_cube",
+          confidence: 1.0,
+        };
+
+        let refinedReferenceBbox = referenceObjectForCalc.bbox;
+        try {
+          const refinedResult = await bboxRefinementMutation.mutateAsync({
+            bbox: referenceObjectForCalc.bbox,
+            image_s3_uri: imageS3Uri,
+          }) as any;
+          refinedReferenceBbox = refinedResult.refined_bbox || referenceObjectForCalc.bbox;
+        } catch (refineError) {
+          console.warn("BBox refinement for Rubik's cube failed:", refineError);
+        }
+
+        const woodStackForCalc = {
+          bbox: [woodStackBox.x, woodStackBox.y, woodStackBox.x + woodStackBox.width, woodStackBox.y + woodStackBox.height],
+          object: "pine",
+          confidence: 1.0,
+        };
+
+        const predictionsWithSize = await referenceCalculatorMutation.mutateAsync({
+          predictions: [woodStackForCalc],
+          reference_width_cm: 5.8,
+          reference_width_px: refinedReferenceBbox[2] - refinedReferenceBbox[0],
+          focal_length_px: 10,
+          reference_height_px: refinedReferenceBbox[3] - refinedReferenceBbox[1],
+        });
+
+        finalPredictions = [
+          ...Array.from(predictionsWithSize, x => ({ ...x })),
+          { ...referenceObjectForCalc, bbox: refinedReferenceBbox },
+        ];
+      } else {
+        finalPredictions = drawnBoxes.map((box: any) => ({
+          bbox: [box.x, box.y, box.x + box.width, box.y + box.height],
+          object: box.label === "Rubkis cube" ? "rubiks_cube" : "pine",
+          confidence: 1.0,
+        }));
+      }
+
+      setPictureStatus("Generating annotated image from drawing...");
+      const outputImageResult = await outputImageMutation.mutateAsync({
+        user: userId,
+        image_s3_uri: imageS3Uri,
+        predictions: finalPredictions,
+      });
+
+      if (outputImageResult.annotated_s3_uri) {
+        const downloadAnnotatedS3 = await getFile(
+          outputImageResult.annotated_s3_uri.split('/').splice(3).join('/')
+        );
+        const updatedPhotos = [...capturedPhotos];
+        updatedPhotos[currentPhotoIndex] = {
+          ...photoToUpdate,
+          processed: true,
+          annotatedImage: {
+            image_s3_uri: imageS3Uri,
+            annotated_s3_uri: outputImageResult.annotated_s3_uri,
+            download_annotated_s3_uri: downloadAnnotatedS3?.url,
+            predictions: finalPredictions,
+          },
+        };
+        setCapturedPhotos(updatedPhotos);
+
+        if (currentPhotoIndex + 1 < requiredPhotos) {
+          setCurrentPhotoIndex(currentPhotoIndex + 1);
+          setMode(mode === 'front' ? 'side' : 'front');
+        } else {
+          navigateToPrediction(updatedPhotos);
+        }
+      }
+    } catch (error) {
+      console.error("Error processing annotation data:", error);
+      Alert.alert("Processing Error", `Error processing manual drawing: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [
+    userId,
+    currentPhotoIndex,
+    requiredPhotos,
+    capturedPhotos,
+    mode,
+    bboxRefinementMutation,
+    referenceCalculatorMutation,
+    outputImageMutation,
+    navigateToPrediction
+  ]);
+
+  // Handle annotation data from params
+  useEffect(() => {
+    if (!params.bboxData || !params.processedImageUri) return;
+
+    const processData = async () => {
+      try {
+        await processAnnotationData(params.bboxData as string, params.processedImageUri as string);
+      } finally {
+        router.setParams({ 
+          bboxData: undefined, 
+          processedImageUri: undefined 
+        });
+      }
+    };
+
+    processData();
+  }, [params.bboxData, params.processedImageUri, processAnnotationData, router]);
+
+  // Show loading state until we're ready
+  if (!permission || !permission.granted) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+        <ActivityIndicator size="large" color="#FFF" />
+        <Text style={{ color: '#FFF', marginTop: 10 }}>Loading camera...</Text>
+      </View>
+    );
+  }
+
+  return <CameraScreenContent />;
 }
 
 const { width, height } = Dimensions.get("window");
