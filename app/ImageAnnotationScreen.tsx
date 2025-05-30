@@ -9,6 +9,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import BoundingBox from '../components/BoundingBox'; // Adjusted path if BoundingBox is in ../components/
+import { logger } from './features/camera/utils/logger';
 
 interface Box {
   id: string; 
@@ -23,7 +24,19 @@ interface Box {
 const PAN_ACTIVE_OFFSET_THRESHOLD = 15; 
 
 export default function ImageAnnotationScreen() {
-  const { imageUri } = useLocalSearchParams<{ imageUri: string }>();
+  const { 
+    imageUri, 
+    mode, 
+    currentPhotoIndexForAnnotation, // Received from CameraScreen
+    processedImageUri: navProcessedImageUri, // Received from CameraScreen
+    photosToCarryForward // Received from CameraScreen
+  } = useLocalSearchParams<{
+    imageUri: string;
+    mode?: 'reference' | 'manual_capture';
+    currentPhotoIndexForAnnotation?: string;
+    processedImageUri?: string;
+    photosToCarryForward?: string; // Base64 encoded string of CapturedPhoto[]
+  }>();
   const router = useRouter();
   const [boxes, setBoxes] = useState<Box[]>([]);
 
@@ -118,12 +131,35 @@ export default function ImageAnnotationScreen() {
   };
   
   const handleDone = () => {
-    // console.log('[ImageAnnotationScreen] Done drawing boxes:', JSON.stringify(boxes));
+    // For 'reference' mode, ensure exactly one box is drawn.
+    // This check does not apply to 'manual_capture' mode.
+    if (mode === 'reference' && boxes.length !== 1) {
+      Alert.alert(
+        "Invalid Selection",
+        "Please mark exactly one reference object (Rubik's cube).",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    const finalProcessedImageUri = navProcessedImageUri || imageUri;
+
+    logger.debug('Annotation complete, returning to camera', { 
+      mode, 
+      boxCount: boxes.length, 
+      returnedPhotoIndex: currentPhotoIndexForAnnotation, 
+      willPassExistingPhotos: !!photosToCarryForward 
+    });
+
     router.replace({
-      pathname: '/camera', 
+      pathname: '/camera',
       params: {
         bboxData: JSON.stringify(boxes),
-        processedImageUri: imageUri, 
+        processedImageUri: finalProcessedImageUri,
+        mode: mode, // Pass back the mode it received
+        returnedPhotoIndex: currentPhotoIndexForAnnotation, // Send back the index of the photo that was annotated
+        existingPhotos: photosToCarryForward, // Pass back the photo state
+        photoIndex: currentPhotoIndexForAnnotation // Crucial for CameraScreen's useCameraState to set initialPhotoIndex
       },
     });
   };
@@ -277,7 +313,16 @@ export default function ImageAnnotationScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Draw Bounding Boxes</Text>
+          <Text style={styles.title}>
+            {mode === 'reference' 
+              ? "Mark the Rubik's cube"
+              : "Draw Bounding Boxes"}
+          </Text>
+          {mode === 'reference' && (
+            <Text style={styles.subtitle}>
+              Draw a box around the Rubik's cube for size reference
+            </Text>
+          )}
         </View>
         <PanGestureHandler 
           onGestureEvent={gestureHandler}
@@ -351,5 +396,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row', // Added to place buttons side-by-side
     justifyContent: 'space-around', // Added for spacing
+  },
+  subtitle: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 4,
   },
 }); 
