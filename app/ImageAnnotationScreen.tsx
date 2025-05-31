@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, StyleSheet, SafeAreaView, Text, Dimensions, Button, Alert } from 'react-native';
+import { View, Image, StyleSheet, SafeAreaView, Text, Dimensions, Button, Alert, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PanGestureHandler, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
@@ -353,8 +353,12 @@ export default function ImageAnnotationScreen() {
           </Animated.View>
         </PanGestureHandler>
         <View style={styles.controlsContainer}>
-          <Button title="Reset Boxes" onPress={handleResetBoxes} />
-          <Button title="Done" onPress={handleDone} /> 
+          <View style={styles.buttonContainer}>
+            <Button title="Reset Boxes" onPress={handleResetBoxes} />
+          </View>
+          <View style={styles.buttonContainer}>
+            <Button title="Done" onPress={handleDone} /> 
+          </View>
         </View>
       </SafeAreaView>
     </GestureHandlerRootView>
@@ -390,12 +394,18 @@ const styles = StyleSheet.create({
     height: '100%', 
   },
   controlsContainer: {
-    padding: 10,
+    paddingVertical: Platform.OS === 'android' ? 20 : 10, // More padding on Android
+    paddingHorizontal: 20,
     borderTopWidth: 1, 
     borderTopColor: '#eee',
-    alignItems: 'center',
-    flexDirection: 'row', // Added to place buttons side-by-side
-    justifyContent: 'space-around', // Added for spacing
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff', // Ensure buttons are visible
+    marginBottom: Platform.OS === 'android' ? 20 : 0, // Extra margin on Android
+  },
+  buttonContainer: {
+    flex: 1,
+    marginHorizontal: 10,
   },
   subtitle: {
     color: '#666',
