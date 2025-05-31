@@ -8,16 +8,18 @@ export interface ReferenceObject {
   bbox: number[];
 }
 
-export interface CapturedPhoto {
-  photo: CameraCapturedPicture;
-  processed?: boolean;
-  manualReference?: ReferenceObject;
-  annotatedImage?: {
+export interface AnnotatedImage {
     image_s3_uri: string;
     annotated_s3_uri: string;
     download_annotated_s3_uri?: string;
     predictions: any[];
-  };
+}
+
+export interface CapturedPhoto {
+  photo: CameraCapturedPicture;
+  processed?: boolean;
+  manualReference?: ReferenceObject;
+  annotatedImage?: AnnotatedImage;
 }
 
 export interface PhotoToProcess {
