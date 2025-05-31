@@ -26,6 +26,7 @@ import {
   convertToStandartSize,
 } from "../utils/functions";
 import { useAuth } from "../utils/AuthContext";
+import { AnnotatedImage } from "./features/camera/types";
 import { set } from "date-fns";
 
 const { useDynmo_createMutation } = hooks;
@@ -60,7 +61,7 @@ export default function PredictionScreen() {
   // Use refs to track initialization and prevent infinite loops
   const isInitialized = useRef(false);
 
-  const { item, predictions } = params;
+  const { item } = params;
   const itemData = useMemo(() => {
     try {
       return JSON.parse(Buffer.from(item as string, "base64").toString("utf-8"));
@@ -83,19 +84,34 @@ export default function PredictionScreen() {
   // State for image carousel
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
+  const predictions = useMemo(() => {
+    try {
+      return (photos as AnnotatedImage[]).map(photo => {
+        return photo.predictions
+      });
+    } catch (error) {
+      console.error("Failed to parse predictions:", error);
+      return [];
+    }
+  }, [photos]);
+
   // Parse the predictions and get all dimensions
   const parsedPredictions = useMemo(() => {
     try {
       return predictions
-        ? JSON.parse(predictions as string)?.filter(
-          (item: any) => item.class === "pine"
-        ) || []
+        ? predictions?.map(predict => predict.filter(
+          (item: any) => {
+            return item.class === "pine"
+          }
+        ) || [])
         : [];
     } catch (error) {
       console.error("Failed to parse predictions:", error);
       return [];
     }
   }, [predictions]);
+
+  console.log("Parsed predictions:", parsedPredictions);
 
   const [pictureStatus, setPictureStatus] = useState<string>("Ready to save");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -153,36 +169,26 @@ export default function PredictionScreen() {
     let bestLength = 0;
 
     // Extract best measurements, prioritizing non-zero values
-    parsedPredictions.forEach((prediction: any) => {
+    parsedPredictions[0].forEach((prediction: any) => {
       if (prediction.width_cm && prediction.width_cm > bestWidth) {
         bestWidth = prediction.width_cm;
       }
       if (prediction.height_cm && prediction.height_cm > bestHeight) {
         bestHeight = prediction.height_cm;
       }
-      if (prediction.length_cm && prediction.length_cm > bestLength) {
-        bestLength = prediction.length_cm;
+    });
+
+    parsedPredictions[1].forEach((prediction: any) => {
+      if (prediction.width_cm && prediction.width_cm > bestLength) {
+        bestLength = prediction.width_cm;
       }
     });
 
-    // If we have two images, use them to improve dimension calculation
-    if (photos && photos.length >= 2) {
-      // Top-down view provides best width and height
-      const topDownPreds = photos[0]?.predictions || [];
-      // Horizontal view provides best depth/length
-      const horizontalPreds = photos[1]?.predictions || [];
-
-      // Extract measurements from top-down view (if available)
-      topDownPreds.forEach((pred: any) => {
-        if (pred.width_cm && pred.width_cm > 0) bestWidth = pred.width_cm;
-        if (pred.height_cm && pred.height_cm > 0) bestHeight = pred.height_cm;
-      });
-
-      // Extract measurements from horizontal view (if available)
-      horizontalPreds.forEach((pred: any) => {
-        if (pred.width_cm && pred.width_cm > 0) bestLength = pred.width_cm;
-      });
-    }
+    console.log("Best dimensions found:", {
+      bestWidth,
+      bestHeight,
+      bestLength,
+    });
 
     if (standartFlag) {
       // Convert to standard size
@@ -254,7 +260,6 @@ export default function PredictionScreen() {
               photos: photos, // Keep the photos array
             })
           ).toString("base64"),
-          predictions: predictions,
         },
       });
     } catch (error) {

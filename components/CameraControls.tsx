@@ -3,7 +3,7 @@ import { View, TouchableOpacity, StyleSheet, Text } from "react-native";
 import { Icon } from "react-native-elements";
 import ImagePickerExample from "./pickImage";
 import { CameraCapturedPicture } from "expo-camera";
-import { Split } from "../app/camera";
+import { Split } from "../app/features/camera/types";
 
 const CameraControls = ({
   onCapture,

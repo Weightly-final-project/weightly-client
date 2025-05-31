@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, Dimensions } from 'react-native';
 import { Accelerometer } from 'expo-sensors';
 
 interface OrientationGuideProps {
@@ -16,17 +16,14 @@ export const OrientationGuide: React.FC<OrientationGuideProps> = ({ onOrientatio
     return () => _unsubscribe();
   }, []);
 
-    useEffect(() => {
-      const isValid = !(Math.abs(y) > Math.abs(x));
-  
-      onOrientationValid(prev => {
-        if (prev !== isValid) {
-          setIsValid(isValid);
-          return isValid;
-        }
-        return prev;
-      });
-    }, [x, y, onOrientationValid]);
+  // First effect to calculate validity
+  useEffect(() => {
+    const newIsValid = !(Math.abs(y) > Math.abs(x));
+    if (newIsValid !== isValid) {
+      setIsValid(newIsValid);
+      onOrientationValid(newIsValid);
+    }
+  }, [x, y, isValid, onOrientationValid]);
 
   const _subscribe = () => {
     setSubscription(

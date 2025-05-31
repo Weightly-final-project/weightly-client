@@ -6,8 +6,9 @@ import {
   Text,
   View,
   Alert,
+  TouchableOpacity,
 } from "react-native";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { hooks, ResponseType } from "../utils/api";
 import { ActivityIndicator, Button } from "react-native-paper";
@@ -19,6 +20,7 @@ const { useDynmo_getMutation } = hooks;
 
 export default function PredictionListScreen() {
   const dynmo_getMutation = useDynmo_getMutation();
+  const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const [predictions, setPredictions] = useState<
     ResponseType<"dynmo_get"> | undefined
@@ -146,6 +148,33 @@ export default function PredictionListScreen() {
     fetchResult();
   };
 
+  const handleCameraPress = () => {
+    Alert.alert(
+      "Choose Processing Method",
+      "How would you like to process your object?",
+      [
+        {
+          text: "AI Flow",
+          onPress: () => {
+            router.push({
+              pathname: "/camera",
+              params: { mode: "ai" }
+            });
+          }
+        },
+        {
+          text: "Manual Flow",
+          onPress: () => {
+            router.push({
+              pathname: "/camera",
+              params: { mode: "manual" }
+            });
+          }
+        }
+      ]
+    );
+  };
+
   // Show loading indicator while authentication is checking
   if (authLoading) {
     return (
@@ -162,11 +191,11 @@ export default function PredictionListScreen() {
 
       <View style={styles.contentContainer}>
         <View style={styles.actionContainer}>
-          <Link href="/camera" asChild>
+          <TouchableOpacity onPress={handleCameraPress}>
             <Button mode="contained" icon="camera" style={styles.cameraButton}>
               Camera
             </Button>
-          </Link>
+          </TouchableOpacity>
         </View>
 
         {loading ? (

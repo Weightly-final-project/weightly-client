@@ -82,6 +82,29 @@ export default function ConfirmPhotosScreen() {
     router.back();
   };
 
+  const handleRetakePhoto = (index: number) => {
+    router.push({
+      pathname: "/camera",
+      params: {
+        photoIndex: index,
+        existingPhotos: Buffer.from(JSON.stringify(photos)).toString("base64"),
+        predictions: params.predictions,
+        singlePhotoMode: "true",
+      },
+    });
+  };
+
+  const handleEditPhoto = (index: number) => {
+    router.push({
+      pathname: "/edit-photo",
+      params: {
+        photoIndex: index,
+        photos: Buffer.from(JSON.stringify(photos)).toString("base64"),
+        predictions: params.predictions,
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -117,6 +140,20 @@ export default function ConfirmPhotosScreen() {
                   <Text style={styles.detectedText}>✓ Object Detected</Text>
                 </View>
               )}
+              <View style={styles.photoActions}>
+                <TouchableOpacity
+                  style={[styles.photoButton, styles.editButton]}
+                  onPress={() => handleEditPhoto(index)}
+                >
+                  <Text style={styles.photoButtonText}>Edit Photo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.photoButton, styles.retakePhotoButton]}
+                  onPress={() => handleRetakePhoto(index)}
+                >
+                  <Text style={styles.photoButtonText}>Retake Photo</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ))}
         </View>
@@ -126,7 +163,7 @@ export default function ConfirmPhotosScreen() {
             style={[styles.button, styles.retakeButton]}
             onPress={handleRetake}
           >
-            <Text style={[styles.buttonText, styles.retakeButtonText]}>Retake Photos</Text>
+            <Text style={[styles.buttonText, styles.retakeButtonText]}>Retake All</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.button, styles.confirmButton]}
@@ -193,6 +230,29 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   detectedText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  photoActions: {
+    flexDirection: 'row',
+    padding: 12,
+    gap: 8,
+    backgroundColor: '#2A2A2A',
+  },
+  photoButton: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  editButton: {
+    backgroundColor: '#1976D2',
+  },
+  retakePhotoButton: {
+    backgroundColor: '#D32F2F',
+  },
+  photoButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
