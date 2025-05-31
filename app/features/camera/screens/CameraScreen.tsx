@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Alert, StatusBar } from 'react-native';
+import { View, Alert, StatusBar, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Buffer } from 'buffer';
@@ -165,23 +165,23 @@ function CameraScreenContent() {
         if (allPhotosProcessed) {
           logger.info('Both photos processed (after manual annotation), navigating to prediction');
           navigateToPrediction(updatedPhotos);
-        } else if (photoIndexToUpdate === 0 && updatedPhotos.length < 2) {
-          // If this was the first photo and we need a second one
+        } else if (photoIndexToUpdate === 0) {
+          // If this was the first photo, prepare for second
           setCurrentPhotoIndex(1);
           setPictureStatus("Please take the second photo");
-        } else if (photoIndexToUpdate === 0 && updatedPhotos.length === 2 && !updatedPhotos[1]?.processed) {
-            // If this was the first photo, second slot exists but not processed
-            setCurrentPhotoIndex(1);
-            setPictureStatus("Please take the second photo");
-        } else if (photoIndexToUpdate === 1 && !updatedPhotos[0]?.processed) {
-          // This was the second photo, but the first is somehow not processed (edge case)
-          logger.warn('Second photo annotated, but first is not processed. Waiting for first photo.');
-          setCurrentPhotoIndex(0); // Prompt for first photo again or handle error
-          setPictureStatus("Please process the first photo.");
+          // Reset processing state to ensure camera is ready
+          setIsProcessing(false);
+          setShowManualBoundingBox(false);
         } else {
-          // This case might be redundant if allPhotosProcessed covers it,
-          // or handles single photo mode if that's ever a factor here.
-          logger.debug('Manual annotation processed. State:', { photoIndexToUpdate, numCaptured: updatedPhotos.length, allProcessed: allPhotosProcessed });
+          // This case might be redundant if allPhotosProcessed covers it
+          logger.debug('Manual annotation processed. State:', { 
+            photoIndexToUpdate, 
+            numCaptured: updatedPhotos.length, 
+            allProcessed: allPhotosProcessed 
+          });
+          // Reset processing state
+          setIsProcessing(false);
+          setShowManualBoundingBox(false);
         }
       } else {
         logger.warn('Photo not found at photoIndexToUpdate for manual annotation.', { photoIndexToUpdate });
@@ -191,20 +191,25 @@ function CameraScreenContent() {
             mode: undefined,
             returnedPhotoIndex: undefined
         });
+        // Reset processing state
+        setIsProcessing(false);
+        setShowManualBoundingBox(false);
       }
     }
   }, [
     params.bboxData,
     params.processedImageUri,
     params.mode,
-    params.returnedPhotoIndex, // New dependency
+    params.returnedPhotoIndex,
     currentPhotoIndex,
     capturedPhotos,
     navigateToPrediction,
     setCapturedPhotos,
     setCurrentPhotoIndex,
     setPictureStatus,
-    router // Added router as a dependency because of setParams
+    setIsProcessing,
+    setShowManualBoundingBox,
+    router
   ]);
 
   const requiredPhotos = React.useMemo(() => 
@@ -266,7 +271,9 @@ function CameraScreenContent() {
       logger.debug('Taking picture', { 
         mode, 
         currentPhotoIndex,
-        totalPhotos: capturedPhotos.length
+        totalPhotos: capturedPhotos.length,
+        flowMode,
+        cameraRef: !!cameraRef.current
       });
       
       const photo = await cameraRef.current.takePictureAsync({
@@ -275,7 +282,16 @@ function CameraScreenContent() {
         skipProcessing: false,
       });
 
+      logger.debug('Photo captured', {
+        photoExists: !!photo,
+        uri: photo?.uri,
+        width: photo?.width,
+        height: photo?.height,
+        exif: photo?.exif
+      });
+
       if (!photo) {
+        logger.error('Failed to capture photo - photo object is null');
         Alert.alert(
           "Could not take picture",
           "Try again if problem persists contact support",
@@ -288,6 +304,10 @@ function CameraScreenContent() {
         const temp = photo.width;
         photo.width = photo.height;
         photo.height = temp;
+        logger.debug('Adjusted photo dimensions for orientation', {
+          newWidth: photo.width,
+          newHeight: photo.height
+        });
       }
 
       const newPhoto: CapturedPhoto = {
@@ -304,20 +324,66 @@ function CameraScreenContent() {
       } else { // Manual flow: Navigate to ImageAnnotationScreen
         setIsProcessing(false);
         const currentPhotoUri = updatedPhotos[currentPhotoIndex].photo.uri;
-        logger.info('Manual flow: Navigating to ImageAnnotationScreen', {
-          currentPhotoIndex,
-          uri: currentPhotoUri,
-          photosStateBeingSent: updatedPhotos.map(p => ({uri: p.photo.uri, processed: p.processed}))
+        
+        if (!currentPhotoUri) {
+          logger.error('No photo URI available for navigation', {
+            photo: updatedPhotos[currentPhotoIndex].photo,
+            index: currentPhotoIndex,
+            totalPhotos: updatedPhotos.length
+          });
+          Alert.alert('Error', 'Failed to process photo');
+          return;
+        }
+
+        // Ensure the URI is properly formatted for Android
+        const formattedUri = Platform.OS === 'android' 
+          ? currentPhotoUri.startsWith('file://') 
+            ? currentPhotoUri 
+            : `file://${currentPhotoUri}`
+          : currentPhotoUri;
+
+        // Log the state before navigation
+        logger.debug('Pre-navigation state:', {
+          originalUri: currentPhotoUri,
+          formattedUri,
+          platform: Platform.OS,
+          photoDetails: {
+            width: photo.width,
+            height: photo.height,
+            uri: photo.uri
+          }
         });
+
+        // Encode the URI to handle special characters
+        const encodedUri = encodeURI(formattedUri);
+
+        // Log the final navigation parameters
+        logger.debug('Navigation parameters:', {
+          encodedUri,
+          mode: 'manual_capture',
+          currentPhotoIndex,
+          photosToCarryForward: true
+        });
+
         router.push({
           pathname: '/ImageAnnotationScreen', 
           params: {
-            imageUri: currentPhotoUri, 
-            processedImageUri: currentPhotoUri, 
+            imageUri: encodedUri,
             mode: 'manual_capture', 
-            currentPhotoIndexForAnnotation: currentPhotoIndex.toString(), 
-            photosToCarryForward: Buffer.from(JSON.stringify(updatedPhotos)).toString("base64"),
-          },
+            currentPhotoIndexForAnnotation: currentPhotoIndex.toString(),
+            photosToCarryForward: Buffer.from(JSON.stringify(updatedPhotos)).toString("base64")
+          }
+        });
+
+        // Log after preparing navigation
+        logger.debug('Navigation prepared', {
+          pathname: '/ImageAnnotationScreen',
+          paramsSet: {
+            hasImageUri: !!encodedUri,
+            imageUriLength: encodedUri.length,
+            mode: 'manual_capture',
+            index: currentPhotoIndex.toString()
+          }
         });
       }
     }
