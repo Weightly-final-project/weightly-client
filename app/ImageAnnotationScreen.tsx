@@ -26,7 +26,7 @@ interface Box {
 
 const PAN_ACTIVE_OFFSET_THRESHOLD = 15;
 
-const { useOutput_imageMutation } = hooks;
+const { useOutput_imageMutation, useReference_calculatorMutation } = hooks;
 
 export default function ImageAnnotationScreen() {
   const {
@@ -58,6 +58,7 @@ export default function ImageAnnotationScreen() {
   });
 
   const outputImageMutation = useOutput_imageMutation();
+  const referenceCalculatorMutation = useReference_calculatorMutation();
 
   const imageSize = {
     width: parseInt(imageWidth || '0', 10),
@@ -67,9 +68,9 @@ export default function ImageAnnotationScreen() {
   useEffect(() => {
     // console.log('[ImageAnnotationScreen] boxes state changed:', JSON.stringify(boxes));
     if (imageUri) {
-    //   console.log('[ImageAnnotationScreen] imageUri is present:', imageUri);
+      //   console.log('[ImageAnnotationScreen] imageUri is present:', imageUri);
     } else {
-    //   console.log('[ImageAnnotationScreen] imageUri is NOT present.');
+      //   console.log('[ImageAnnotationScreen] imageUri is NOT present.');
     }
   }, [boxes, imageUri]);
 
@@ -116,7 +117,7 @@ export default function ImageAnnotationScreen() {
         isSelected: false,
         label: label,
       };
-    //   console.log(`[ImageAnnotationScreen] Adding new box with label: ${label}`);
+      //   console.log(`[ImageAnnotationScreen] Adding new box with label: ${label}`);
       return [...currentBoxes, newBoxWithIdAndLabel];
     });
   };
@@ -213,19 +214,33 @@ export default function ImageAnnotationScreen() {
 
       setPictureStatus("Generating annotated image...");
 
-      console.log('Boxes to annotate:', boxes);
+      const predictions = boxes.map(bbox => {
+        const box = convertToImageCoordinates(bbox);
+        return ({
+          object: bbox.label == "Rubkis cube" ? "rubiks_cube" : "pine",
+          class: bbox.label == "Rubkis cube" ? "rubiks_cube" : "pine",
+          bbox: [box.x, box.y, box.x + box.width, box.y + box.height],
+          confidence: 1.0,
+        })
+      })
+      const reference_object = predictions.find(pred => pred.object === "rubiks_cube") || {
+        object: "rubiks_cube",
+        bbox: [0, 0, 1, 1],
+      };
+
+      const predictions_with_size = await referenceCalculatorMutation.mutateAsync({
+        predictions: predictions,
+        reference_width_cm: 5.8,
+        reference_width_px: reference_object.bbox[2] - reference_object.bbox[0],
+        focal_length_px: 10,
+        reference_height_px: reference_object.bbox[3] - reference_object.bbox[1],
+      });
 
       const pred1 = await outputImageMutation.mutateAsync({
         user: userId,
         image_s3_uri: `s3://weighlty/${res1.Key}`,
-        predictions: boxes.map(bbox => {
-          const box = convertToImageCoordinates(bbox);
-          return ({
-            class: bbox.label == "Rubkis cube" ? "rubiks_cube" : "pine",
-            bbox: [box.x, box.y, box.x + box.width, box.y + box.height],
-          })
-        }),
-      });
+        predictions
+      })
 
       setIsProcessing(false);
 
@@ -248,7 +263,7 @@ export default function ImageAnnotationScreen() {
         pathname: '/camera',
         params: {
           DownloadedProcessedImageUri,
-          bboxData: JSON.stringify(boxes),
+          bboxData: JSON.stringify(predictions_with_size),
           processedImageUri: finalProcessedImageUri,
           originalImageUri: 's3://weighlty/' + res1.Key,
           mode: mode, // Pass back the mode it received
@@ -266,7 +281,7 @@ export default function ImageAnnotationScreen() {
 
   const handleSelectBox = (selectedId: string) => {
     if (isDrawing.value || isMovingBox.value || isResizingBox.value) {
-    //   console.log('[ImageAnnotationScreen] handleSelectBox skipped due to active gesture.');
+      //   console.log('[ImageAnnotationScreen] handleSelectBox skipped due to active gesture.');
       return;
     }
     // console.log(`[ImageAnnotationScreen] handleSelectBox called for id: ${selectedId}`);
@@ -278,7 +293,7 @@ export default function ImageAnnotationScreen() {
     );
     isDrawing.value = false;
   };
-  
+
   const deselectAllBoxes = () => {
     // console.log('[ImageAnnotationScreen] deselectAllBoxes called');
     setBoxes(prevBoxes => prevBoxes.map(b => ({ ...b, isSelected: false })));
@@ -289,15 +304,15 @@ export default function ImageAnnotationScreen() {
     // console.log('[GestureJS] _onGestureStartJS - currentSelectedBoxBeforeGesture:', currentSelectedBoxBeforeGesture ? currentSelectedBoxBeforeGesture.id : 'none', 'isResizing:', isResizingBox.value);
 
     if (isResizingBox.value) {
-        // console.log('[GestureJS] _onGestureStartJS - Bailing out: Resize is active.');
-        return;
+      // console.log('[GestureJS] _onGestureStartJS - Bailing out: Resize is active.');
+      return;
     }
 
     if (currentSelectedBoxBeforeGesture) {
       if (touchX >= currentSelectedBoxBeforeGesture.x &&
-          touchX <= currentSelectedBoxBeforeGesture.x + currentSelectedBoxBeforeGesture.width &&
-          touchY >= currentSelectedBoxBeforeGesture.y &&
-          touchY <= currentSelectedBoxBeforeGesture.y + currentSelectedBoxBeforeGesture.height) {
+        touchX <= currentSelectedBoxBeforeGesture.x + currentSelectedBoxBeforeGesture.width &&
+        touchY >= currentSelectedBoxBeforeGesture.y &&
+        touchY <= currentSelectedBoxBeforeGesture.y + currentSelectedBoxBeforeGesture.height) {
         // console.log(`[GestureJS] Decided: Start MOVE for box ${currentSelectedBoxBeforeGesture.id}`);
         isMovingBox.value = true;
         isDrawing.value = false;
@@ -313,7 +328,7 @@ export default function ImageAnnotationScreen() {
         isMovingBox.value = false;
       }
     } else {
-    //   console.log('[GestureJS] Decided: Start DRAW.');
+      //   console.log('[GestureJS] Decided: Start DRAW.');
       deselectAllBoxes();
       isDrawing.value = true;
       isMovingBox.value = false;
@@ -326,9 +341,9 @@ export default function ImageAnnotationScreen() {
 
   const gestureHandler = useAnimatedGestureHandler({
     onStart: (event) => {
-    //   console.log('[Reanimated] PanGestureHandler onStart');
+      //   console.log('[Reanimated] PanGestureHandler onStart');
       if (isResizingBox.value) {
-          return;
+        return;
       }
       isDrawing.value = false;
       isMovingBox.value = false;
@@ -373,7 +388,7 @@ export default function ImageAnnotationScreen() {
       }
     },
     onFail: (event) => {
-    //   console.log('[Reanimated] PanGestureHandler onFail');
+      //   console.log('[Reanimated] PanGestureHandler onFail');
       if (!isResizingBox.value) {
         isDrawing.value = false;
         isMovingBox.value = false;
