@@ -498,7 +498,37 @@ function CameraScreenContent() {
           const updatedPhotos = [...capturedPhotos];
           updatedPhotos[currentPhotoIndex] = newPhoto;
           setCapturedPhotos(updatedPhotos);
-          processPhoto(newPhoto);
+          if (flowMode === 'ai') {
+              processPhoto(newPhoto);
+          } else {
+            setIsProcessing(false);
+            const currentPhotoUri = photo.uri;
+            if (!currentPhotoUri) {
+              logger.error('No photo URI available for navigation', {
+                photo: photo,
+                index: currentPhotoIndex,
+                totalPhotos: updatedPhotos.length
+              });
+              Alert.alert('Error', 'Failed to process photo');
+              return;
+            }
+            const formattedUri = Platform.OS === 'android' 
+              ? currentPhotoUri.startsWith('file://') 
+                ? currentPhotoUri 
+                : `file://${currentPhotoUri}`
+              : currentPhotoUri;
+            const encodedUri = encodeURI(formattedUri);
+            
+            router.push({
+              pathname: '/ImageAnnotationScreen', 
+              params: {
+                imageUri: encodedUri,
+                mode: 'manual_capture', 
+                currentPhotoIndexForAnnotation: currentPhotoIndex.toString(),
+                photosToCarryForward: Buffer.from(JSON.stringify(updatedPhotos)).toString("base64")
+              }
+            });
+          }
         }}
         setSplits={setSplits}
         setIsGyroValid={setIsGyroValid}
