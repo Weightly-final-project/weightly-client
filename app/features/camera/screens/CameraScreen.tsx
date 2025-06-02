@@ -103,7 +103,7 @@ function CameraScreenContent() {
   // Handle return from manual bounding box or ImageAnnotationScreen
   useEffect(() => {
     // Check if we have the necessary data and a relevant mode from navigation params
-    if (params.bboxData && params.processedImageUri &&
+    if (params.bboxData && params.processedImageUri && params.originalImageUri &&
         (params.mode === 'reference' || params.mode === 'manual_capture')) {
 
       const photoIndexToUpdate = params.returnedPhotoIndex ? parseInt(params.returnedPhotoIndex as string) : currentPhotoIndex;
@@ -112,7 +112,8 @@ function CameraScreenContent() {
         boxCount: JSON.parse(params.bboxData as string).length,
         photoIndexProcessed: photoIndexToUpdate,
         totalPhotosInState: capturedPhotos.length,
-        photoUri: params.processedImageUri,
+        anotatedPhotoUri: params.processedImageUri,
+        originalPhotoUri: params.originalImageUri,
       });
 
       const boxes = JSON.parse(params.bboxData as string);
@@ -124,6 +125,7 @@ function CameraScreenContent() {
         router.setParams({ // Clear params to prevent re-triggering
             bboxData: undefined,
             processedImageUri: undefined,
+            originalImageUri: undefined,
             mode: undefined,
             returnedPhotoIndex: undefined
         });
@@ -139,12 +141,13 @@ function CameraScreenContent() {
           ...updatedPhotos[photoIndexToUpdate],
           photo: { // Ensure photo object with its URI is preserved or correctly set
             ...updatedPhotos[photoIndexToUpdate].photo,
-            uri: updatedPhotos[photoIndexToUpdate].photo.uri, // This should be the original captured photo URI
+            uri: params.originalImageUri as string, // This should be the original captured photo URI
           },
           processed: true,
           annotatedImage: {
-            image_s3_uri: updatedPhotos[photoIndexToUpdate].photo.uri, // Original URI
+            image_s3_uri: params.originalImageUri as string, // Original URI
             annotated_s3_uri: params.processedImageUri as string,      // URI that was annotated (can be same as original)
+            download_annotated_s3_uri: (params.DownloadedProcessedImageUri as string) || (params.processedImageUri as string), // Assuming this is the same for now
             predictions: boxes // The bounding boxes from annotation
           }
         };
@@ -368,7 +371,10 @@ function CameraScreenContent() {
         router.push({
           pathname: '/ImageAnnotationScreen', 
           params: {
+            userId,
             imageUri: encodedUri,
+            imageWidth: photo.width, 
+            imageHeight: photo.height,
             mode: 'manual_capture', 
             currentPhotoIndexForAnnotation: currentPhotoIndex.toString(),
             photosToCarryForward: Buffer.from(JSON.stringify(updatedPhotos)).toString("base64")
@@ -492,7 +498,37 @@ function CameraScreenContent() {
           const updatedPhotos = [...capturedPhotos];
           updatedPhotos[currentPhotoIndex] = newPhoto;
           setCapturedPhotos(updatedPhotos);
-          processPhoto(newPhoto);
+          if (flowMode === 'ai') {
+              processPhoto(newPhoto);
+          } else {
+            setIsProcessing(false);
+            const currentPhotoUri = photo.uri;
+            if (!currentPhotoUri) {
+              logger.error('No photo URI available for navigation', {
+                photo: photo,
+                index: currentPhotoIndex,
+                totalPhotos: updatedPhotos.length
+              });
+              Alert.alert('Error', 'Failed to process photo');
+              return;
+            }
+            const formattedUri = Platform.OS === 'android' 
+              ? currentPhotoUri.startsWith('file://') 
+                ? currentPhotoUri 
+                : `file://${currentPhotoUri}`
+              : currentPhotoUri;
+            const encodedUri = encodeURI(formattedUri);
+            
+            router.push({
+              pathname: '/ImageAnnotationScreen', 
+              params: {
+                imageUri: encodedUri,
+                mode: 'manual_capture', 
+                currentPhotoIndexForAnnotation: currentPhotoIndex.toString(),
+                photosToCarryForward: Buffer.from(JSON.stringify(updatedPhotos)).toString("base64")
+              }
+            });
+          }
         }}
         setSplits={setSplits}
         setIsGyroValid={setIsGyroValid}
