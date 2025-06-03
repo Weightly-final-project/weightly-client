@@ -246,6 +246,8 @@ export default function ImageAnnotationScreen() {
 
       const finalProcessedImageUri = pred1.annotated_s3_uri || 's3://weighlty/' + res1.Key;
 
+      const DownloadOriginalImageUri = (await getFile(res1.Key))?.url || `s3://weighlty/${res1.Key}`;
+
       const DownloadedProcessedImageUri = (await getFile(
         finalProcessedImageUri.split('/').slice(3).join('/')
       ))?.url || finalProcessedImageUri;
@@ -263,6 +265,7 @@ export default function ImageAnnotationScreen() {
         pathname: '/camera',
         params: {
           DownloadedProcessedImageUri,
+          DownloadOriginalImageUri,
           bboxData: JSON.stringify(predictions_with_size),
           processedImageUri: finalProcessedImageUri,
           originalImageUri: 's3://weighlty/' + res1.Key,

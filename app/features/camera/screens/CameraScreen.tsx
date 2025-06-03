@@ -141,7 +141,7 @@ function CameraScreenContent() {
           ...updatedPhotos[photoIndexToUpdate],
           photo: { // Ensure photo object with its URI is preserved or correctly set
             ...updatedPhotos[photoIndexToUpdate].photo,
-            uri: params.originalImageUri as string, // This should be the original captured photo URI
+            uri: params.DownloadOriginalImageUri as string, // This should be the original captured photo URI
           },
           processed: true,
           annotatedImage: {
