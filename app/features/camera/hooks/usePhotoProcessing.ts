@@ -125,10 +125,19 @@ export function usePhotoProcessing({
           image_s3_uri: `s3://weighlty/${res1.Key}`,
         } as const);
 
-        const box = bigBboxCalculator(prediction.predictions);
-        const parsedPredictions = [...(prediction.predictions.filter(
+        const pinePredictions = prediction.predictions.filter(
+          (prediction) => prediction.object === "pine"
+        ) || [];
+
+        const pineThreasholdPredictions = pinePredictions.filter(
           (prediction) => prediction.confidence >= confidenceThreshold
-        ) || []), {bbox: [box.minX, box.minY, box.maxX, box.maxY], object: "pine", confidence: 1.0}];
+        ) || [];
+
+        const box = bigBboxCalculator(pineThreasholdPredictions);
+
+        const parsedPredictions = [...pineThreasholdPredictions, 
+          {bbox: [box.minX, box.minY, box.maxX, box.maxY], object: "pine", confidence: 1.0}
+        ];
 
         setPictureStatus("Analyzing objects...");
         logger.info('Calculating sizes with reference object');
