@@ -162,18 +162,22 @@ export default function ImageAnnotationScreen() {
       return box; // Cannot convert if we don't have sizes yet
     }
 
+    const imageAspectRatio = imageSize.width / imageSize.height;
+
+    const uiImageSize = {
+      width: Dimensions.get('window').width,
+      height: Dimensions.get('window').width / imageAspectRatio
+    };
+
     // Calculate the scale and offset
     const scale = Math.min(
-      containerSize.width / imageSize.width,
-      containerSize.height / imageSize.height
+      uiImageSize.width / imageSize.width,
+      uiImageSize.height / imageSize.height
     );
 
-    const scaledImageWidth = imageSize.width * scale;
-    const scaledImageHeight = imageSize.height * scale;
-
     // Calculate the position of the image within the container
-    const offsetX = (containerSize.width - scaledImageWidth) / 2;
-    const offsetY = (containerSize.height - scaledImageHeight) / 2;
+    const offsetX = (containerSize.width - uiImageSize.width) / 2;
+    const offsetY = (containerSize.height - uiImageSize.height) / 2;
 
     // Convert screen coordinates to image coordinates
     const imageX = (box.x - offsetX) / scale;
