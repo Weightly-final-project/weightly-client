@@ -17,20 +17,20 @@ function useNavigationState() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { user } = useAuth();
-  
+
   const navigationState = React.useMemo(() => {
     // logger.debug('Initializing navigation state', { params });
-    
+
     const isSinglePhotoMode = params.singlePhotoMode === "true";
     const userId = user?.username || "guest";
-    
+
     return {
       router,
       params,
       userId,
       isSinglePhotoMode,
-      existingPhotos: params.existingPhotos ? 
-        JSON.parse(Buffer.from(params.existingPhotos as string, 'base64').toString()) : 
+      existingPhotos: params.existingPhotos ?
+        JSON.parse(Buffer.from(params.existingPhotos as string, 'base64').toString()) :
         [],
       photoIndex: params.photoIndex ? parseInt(params.photoIndex as string) : 0,
     };
@@ -84,14 +84,14 @@ function CameraScreenContent() {
       logger.info('Waiting for second photo before navigation');
       return;
     }
-    
+
     if (!lastPhoto?.annotatedImage?.image_s3_uri || !lastPhoto?.annotatedImage?.annotated_s3_uri) {
       logger.warn('Cannot navigate to prediction - missing required photo data');
       return;
     }
 
-    logger.info('Navigating to prediction screen', { 
-      photosCount: processedPhotos.length 
+    logger.info('Navigating to prediction screen', {
+      photosCount: processedPhotos.length
     });
 
     router.replace({
@@ -107,7 +107,7 @@ function CameraScreenContent() {
   useEffect(() => {
     // Check if we have the necessary data and a relevant mode from navigation params
     if (params.bboxData && params.processedImageUri && params.originalImageUri &&
-        (params.mode === 'reference' || params.mode === 'manual_capture')) {
+      (params.mode === 'reference' || params.mode === 'manual_capture')) {
 
       const photoIndexToUpdate = params.returnedPhotoIndex ? parseInt(params.returnedPhotoIndex as string) : currentPhotoIndex;
 
@@ -126,11 +126,11 @@ function CameraScreenContent() {
         logger.warn('Reference object annotation requires exactly one box.', { boxCount: boxes.length });
         Alert.alert("Error", "Reference object annotation requires one box. Please try again.");
         router.setParams({ // Clear params to prevent re-triggering
-            bboxData: undefined,
-            processedImageUri: undefined,
-            originalImageUri: undefined,
-            mode: undefined,
-            returnedPhotoIndex: undefined
+          bboxData: undefined,
+          processedImageUri: undefined,
+          originalImageUri: undefined,
+          mode: undefined,
+          returnedPhotoIndex: undefined
         });
         return;
       }
@@ -158,10 +158,10 @@ function CameraScreenContent() {
 
         // Clear the navigation params to prevent this useEffect from re-running with stale data
         router.setParams({
-            bboxData: undefined,
-            processedImageUri: undefined,
-            mode: undefined,
-            returnedPhotoIndex: undefined
+          bboxData: undefined,
+          processedImageUri: undefined,
+          mode: undefined,
+          returnedPhotoIndex: undefined
         });
 
         // Navigation logic: check if all photos are processed or move to the next
@@ -180,10 +180,10 @@ function CameraScreenContent() {
           setShowManualBoundingBox(false);
         } else {
           // This case might be redundant if allPhotosProcessed covers it
-          logger.debug('Manual annotation processed. State:', { 
-            photoIndexToUpdate, 
-            numCaptured: updatedPhotos.length, 
-            allProcessed: allPhotosProcessed 
+          logger.debug('Manual annotation processed. State:', {
+            photoIndexToUpdate,
+            numCaptured: updatedPhotos.length,
+            allProcessed: allPhotosProcessed
           });
           // Reset processing state
           setIsProcessing(false);
@@ -192,10 +192,10 @@ function CameraScreenContent() {
       } else {
         logger.warn('Photo not found at photoIndexToUpdate for manual annotation.', { photoIndexToUpdate });
         router.setParams({ // Clear params to avoid loop if index is bad
-            bboxData: undefined,
-            processedImageUri: undefined,
-            mode: undefined,
-            returnedPhotoIndex: undefined
+          bboxData: undefined,
+          processedImageUri: undefined,
+          mode: undefined,
+          returnedPhotoIndex: undefined
         });
         // Reset processing state
         setIsProcessing(false);
@@ -218,7 +218,7 @@ function CameraScreenContent() {
     router
   ]);
 
-  const requiredPhotos = React.useMemo(() => 
+  const requiredPhotos = React.useMemo(() =>
     isSinglePhotoMode ? currentPhotoIndex + 1 : 2,
     [isSinglePhotoMode, currentPhotoIndex]
   );
@@ -235,8 +235,8 @@ function CameraScreenContent() {
     setCapturedPhotos,
     onProcessingComplete: (photos) => {
       // Check if we have both photos processed
-      const allPhotosProcessed = photos.length === 2 && 
-        photos[0]?.processed && 
+      const allPhotosProcessed = photos.length === 2 &&
+        photos[0]?.processed &&
         photos[1]?.processed;
 
       if (allPhotosProcessed) {
@@ -275,14 +275,14 @@ function CameraScreenContent() {
     }
 
     if (cameraRef.current) {
-      logger.debug('Taking picture', { 
-        mode, 
+      logger.debug('Taking picture', {
+        mode,
         currentPhotoIndex,
         totalPhotos: capturedPhotos.length,
         flowMode,
         cameraRef: !!cameraRef.current
       });
-      
+
       const photo = await cameraRef.current.takePictureAsync({
         exif: true,
         quality: 0.8,
@@ -325,13 +325,13 @@ function CameraScreenContent() {
       const updatedPhotos = [...capturedPhotos];
       updatedPhotos[currentPhotoIndex] = newPhoto;
       setCapturedPhotos(updatedPhotos);
-      
+
       if (flowMode === 'ai') {
         await processPhoto(newPhoto);
       } else { // Manual flow: Navigate to ImageAnnotationScreen
         setIsProcessing(false);
         const currentPhotoUri = updatedPhotos[currentPhotoIndex].photo.uri;
-        
+
         if (!currentPhotoUri) {
           logger.error('No photo URI available for navigation', {
             photo: updatedPhotos[currentPhotoIndex].photo,
@@ -343,9 +343,9 @@ function CameraScreenContent() {
         }
 
         // Ensure the URI is properly formatted for Android
-        const formattedUri = Platform.OS === 'android' 
-          ? currentPhotoUri.startsWith('file://') 
-            ? currentPhotoUri 
+        const formattedUri = Platform.OS === 'android'
+          ? currentPhotoUri.startsWith('file://')
+            ? currentPhotoUri
             : `file://${currentPhotoUri}`
           : currentPhotoUri;
 
@@ -373,11 +373,11 @@ function CameraScreenContent() {
         });
 
         router.push({
-          pathname: '/ImageAnnotationScreen', 
+          pathname: '/ImageAnnotationScreen',
           params: {
             userId,
             imageUri: encodedUri,
-            imageWidth: photo.width, 
+            imageWidth: photo.width,
             imageHeight: photo.height,
             currentPhotoIndexForAnnotation: currentPhotoIndex.toString(),
             photosToCarryForward: Buffer.from(JSON.stringify(updatedPhotos)).toString("base64")
@@ -479,7 +479,7 @@ function CameraScreenContent() {
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <AppHeader title="Camera" showBack={true} />
-      
+
       <CameraUI
         cameraRef={cameraRef as React.RefObject<CameraView>}
         mode={mode}
@@ -503,7 +503,7 @@ function CameraScreenContent() {
           updatedPhotos[currentPhotoIndex] = newPhoto;
           setCapturedPhotos(updatedPhotos);
           if (flowMode === 'ai') {
-              processPhoto(newPhoto);
+            processPhoto(newPhoto);
           } else {
             setIsProcessing(false);
             const currentPhotoUri = photo.uri;
@@ -516,18 +516,20 @@ function CameraScreenContent() {
               Alert.alert('Error', 'Failed to process photo');
               return;
             }
-            const formattedUri = Platform.OS === 'android' 
-              ? currentPhotoUri.startsWith('file://') 
-                ? currentPhotoUri 
+            const formattedUri = Platform.OS === 'android'
+              ? currentPhotoUri.startsWith('file://')
+                ? currentPhotoUri
                 : `file://${currentPhotoUri}`
               : currentPhotoUri;
             const encodedUri = encodeURI(formattedUri);
-            
+
             router.push({
-              pathname: '/ImageAnnotationScreen', 
+              pathname: '/ImageAnnotationScreen',
               params: {
                 userId,
                 imageUri: encodedUri,
+                imageWidth: photo.width,
+                imageHeight: photo.height,
                 currentPhotoIndexForAnnotation: currentPhotoIndex.toString(),
                 photosToCarryForward: Buffer.from(JSON.stringify(updatedPhotos)).toString("base64")
               }
