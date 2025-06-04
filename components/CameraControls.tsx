@@ -71,8 +71,10 @@ const CameraControls = ({
           transform: isOrientationValid ? [{ rotate: "90deg" }] : [{ rotate: "0deg" }],
           width: isOrientationValid ? 60 : 100,
         }]}>
-          <Text style={styles.stepperLabel}>X Splits: {splits.x_splits}</Text>
-          <View style={styles.stepperButtons}>
+          <Text style={styles.stepperLabel}>Rows: {splits.x_splits}</Text>
+          <View style={[styles.stepperButtons, {
+            paddingLeft: isOrientationValid ? 0 : 10,
+          }]}>
             <TouchableOpacity
               style={styles.stepperButton}
               onPress={() => handleXSplitsChange(Math.max(1, splits.x_splits - 1))}
@@ -92,8 +94,10 @@ const CameraControls = ({
           transform: isOrientationValid ? [{ rotate: "90deg" }] : [{ rotate: "0deg" }],
           width: isOrientationValid ? 60 : 100,
         }]}>
-          <Text style={styles.stepperLabel}>Y Splits: {splits.y_splits}</Text>
-          <View style={styles.stepperButtons}>
+          <Text style={styles.stepperLabel}>Cols: {splits.y_splits}</Text>
+          <View style={[styles.stepperButtons, {
+            paddingLeft: isOrientationValid ? 0 : 20
+          }]}>
             <TouchableOpacity
               style={styles.stepperButton}
               onPress={() => handleYSplitsChange(Math.max(1, splits.y_splits - 1))}
@@ -113,7 +117,7 @@ const CameraControls = ({
           transform: isOrientationValid ? [{ rotate: "90deg" }] : [{ rotate: "0deg" }],
           width: isOrientationValid ? 60 : 100,
         }]}>
-          <Text style={styles.stepperLabel}>Conf: {splits.confidenceThreshold}  </Text>
+          <Text style={styles.stepperLabel}>Conf: {Math.round(splits.confidenceThreshold*100)}%  </Text>
           <View style={styles.stepperButtons}>
             <TouchableOpacity
               style={styles.stepperButton}

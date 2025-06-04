@@ -7,6 +7,7 @@ export function useCameraState(initialExistingPhotos: CapturedPhoto[] = [], init
   // logger.debug('Initializing camera state', { initialPhotoIndex, photosCount: initialExistingPhotos.length });
   
   const [pictureStatus, setPictureStatus] = useState<string>("Ready to capture");
+  const [statusProgress, setStatusProgress] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [showManualBoundingBox, setShowManualBoundingBox] = useState(false);
   const [isGyroValid, setIsGyroValid] = useState(false);
@@ -15,6 +16,8 @@ export function useCameraState(initialExistingPhotos: CapturedPhoto[] = [], init
   const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>(initialExistingPhotos);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(initialPhotoIndex);
   const [splits, setSplits] = useState<Split>(defaultSplitsConfig['front']);
+
+  const maxProgress = 4;
 
   const updateMode = (newMode: PhotoMode) => {
     logger.debug('Updating camera mode', { currentMode: mode, newMode });
@@ -39,6 +42,9 @@ export function useCameraState(initialExistingPhotos: CapturedPhoto[] = [], init
   return {
     pictureStatus,
     setPictureStatus,
+    maxProgress,
+    statusProgress,
+    setStatusProgress,
     isProcessing,
     setIsProcessing,
     showManualBoundingBox,

@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../utils/AuthContext';
 import { Buffer } from 'buffer';
+import { encodeURL } from '../utils/functions';
 
 const { width, height } = Dimensions.get('window');
 
@@ -131,7 +132,7 @@ export default function ConfirmPhotosScreen() {
                 {index === 0 ? 'Top-Down View' : 'Horizontal View'}
               </Text>
               <Image
-                source={{ uri: photo.annotatedImage?.download_annotated_s3_uri || photo.photo.uri }}
+                source={{ uri: encodeURL(photo.annotatedImage?.download_annotated_s3_uri || photo.photo.uri) }}
                 style={styles.photoImage}
                 resizeMode="contain"
               />
