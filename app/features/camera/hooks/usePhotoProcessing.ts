@@ -4,6 +4,7 @@ import { uploadFile, getFile } from '../../../../utils/s3';
 import { CapturedPhoto, PhotoToProcess, Split } from '../types';
 import { logger } from '../utils/logger';
 import { useRouter } from 'expo-router';
+import { bigBboxCalculator } from '../../../../utils/functions';
 
 const {
   usePredictMutation,
@@ -124,9 +125,19 @@ export function usePhotoProcessing({
           image_s3_uri: `s3://weighlty/${res1.Key}`,
         } as const);
 
-        const parsedPredictions = prediction.predictions.filter(
+        const pinePredictions = prediction.predictions.filter(
+          (prediction) => prediction.object === "pine"
+        ) || [];
+
+        const pineThreasholdPredictions = pinePredictions.filter(
           (prediction) => prediction.confidence >= confidenceThreshold
-        );
+        ) || [];
+
+        const box = bigBboxCalculator(pineThreasholdPredictions);
+
+        const parsedPredictions = [...pineThreasholdPredictions, 
+          {bbox: [box.minX, box.minY, box.maxX, box.maxY], object: "pine", confidence: 1.0}
+        ];
 
         setPictureStatus("Analyzing objects...");
         logger.info('Calculating sizes with reference object');
@@ -180,7 +191,8 @@ export function usePhotoProcessing({
           return true;
         }
       } catch (error) {
-        logger.error('Error in reference calculation', error);
+        console.error('Error in reference calculation', error);
+        // logger.error('Error in reference calculation', error);
         throw error;
       }
     } catch (error) {
