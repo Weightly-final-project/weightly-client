@@ -133,7 +133,7 @@ export default function ConfirmPhotosScreen() {
                 {index === 0 ? 'Top-Down View' : 'Horizontal View'}
               </Text>
               <Image
-                source={{ uri: Platform.OS == "android" ? encodeURL(photo.annotatedImage?.download_annotated_s3_uri || photo.photo.uri) :  photo.annotatedImage?.download_annotated_s3_uri || photo.photo.uri}}
+                source={{ uri: photo.annotatedImage?.download_annotated_s3_uri || photo.photo.uri}}
                 style={styles.photoImage}
                 resizeMode="contain"
               />

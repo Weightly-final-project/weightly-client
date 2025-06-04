@@ -348,7 +348,7 @@ export default function PredictionScreen() {
         <View style={styles.imageContainer}>
           {activeImage ? (
             <Image
-              source={{ uri: Platform.OS == "android" ? encodeURL(activeImage) : activeImage }}
+              source={{ uri: activeImage }}
               style={styles.image}
               resizeMode="contain"
               onError={(e) => console.error("Image loading error:", e.nativeEvent.error)}
