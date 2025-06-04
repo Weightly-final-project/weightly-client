@@ -275,8 +275,8 @@ export default function ImageAnnotationScreen() {
       router.replace({
         pathname: '/camera',
         params: {
-          DownloadedProcessedImageUri,
-          DownloadOriginalImageUri,
+          DownloadedProcessedImageUri: Buffer.from(DownloadedProcessedImageUri).toString('base64'),
+          DownloadOriginalImageUri: Buffer.from(DownloadOriginalImageUri).toString('base64'),
           bboxData: JSON.stringify(predictions_with_size),
           processedImageUri: finalProcessedImageUri,
           originalImageUri: 's3://weighlty/' + res1.Key,

@@ -144,13 +144,13 @@ function CameraScreenContent() {
           ...updatedPhotos[photoIndexToUpdate],
           photo: { // Ensure photo object with its URI is preserved or correctly set
             ...updatedPhotos[photoIndexToUpdate].photo,
-            uri: params.DownloadOriginalImageUri as string, // This should be the original captured photo URI
+            uri: Buffer.from(params.DownloadOriginalImageUri as string, "base64").toString("utf-8"), // This should be the original captured photo URI
           },
           processed: true,
           annotatedImage: {
             image_s3_uri: params.originalImageUri as string, // Original URI
             annotated_s3_uri: params.processedImageUri as string,      // URI that was annotated (can be same as original)
-            download_annotated_s3_uri: (params.DownloadedProcessedImageUri as string) || (params.processedImageUri as string), // Assuming this is the same for now
+            download_annotated_s3_uri: Buffer.from(params.DownloadedProcessedImageUri as string, "base64").toString("utf-8") || (params.processedImageUri as string), // Assuming this is the same for now
             predictions: boxes // The bounding boxes from annotation
           }
         };
