@@ -526,6 +526,7 @@ function CameraScreenContent() {
             router.push({
               pathname: '/ImageAnnotationScreen', 
               params: {
+                userId,
                 imageUri: encodedUri,
                 currentPhotoIndexForAnnotation: currentPhotoIndex.toString(),
                 photosToCarryForward: Buffer.from(JSON.stringify(updatedPhotos)).toString("base64")

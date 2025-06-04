@@ -272,6 +272,18 @@ export default function ImageAnnotationScreen() {
         willPassExistingPhotos: !!photosToCarryForward
       });
 
+      console.log({
+          DownloadedProcessedImageUri,
+          DownloadOriginalImageUri,
+          bboxData: JSON.stringify(predictions_with_size),
+          processedImageUri: finalProcessedImageUri,
+          originalImageUri: 's3://weighlty/' + res1.Key,
+          mode: 'manual_capture', // Pass back the mode it received
+          returnedPhotoIndex: currentPhotoIndexForAnnotation, // Send back the index of the photo that was annotated
+          existingPhotos: photosToCarryForward, // Pass back the photo state
+          photoIndex: currentPhotoIndexForAnnotation // Crucial for CameraScreen's useCameraState to set initialPhotoIndex
+        })
+
       router.replace({
         pathname: '/camera',
         params: {
@@ -280,7 +292,7 @@ export default function ImageAnnotationScreen() {
           bboxData: JSON.stringify(predictions_with_size),
           processedImageUri: finalProcessedImageUri,
           originalImageUri: 's3://weighlty/' + res1.Key,
-          mode: mode, // Pass back the mode it received
+          mode: 'manual_capture', // Pass back the mode it received
           returnedPhotoIndex: currentPhotoIndexForAnnotation, // Send back the index of the photo that was annotated
           existingPhotos: photosToCarryForward, // Pass back the photo state
           photoIndex: currentPhotoIndexForAnnotation // Crucial for CameraScreen's useCameraState to set initialPhotoIndex
