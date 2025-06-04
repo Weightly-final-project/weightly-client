@@ -8,7 +8,6 @@ export const getFilenameFromS3Uri = (uri: string) => {
 
 export const encodeURL = (url: string) => {
   const split = url.split("?")
-  console.log([split[0], ...split[1].split("&").map((param) => param.split("="))])
   return [
     split[0],
     split[1].split("&").map((param) => {
