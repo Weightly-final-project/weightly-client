@@ -11,6 +11,7 @@ import {
   Image,
   RefreshControl,
   FlatList,
+  Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import Checkbox from 'expo-checkbox';
@@ -347,7 +348,7 @@ export default function PredictionScreen() {
         <View style={styles.imageContainer}>
           {activeImage ? (
             <Image
-              source={{ uri: encodeURL(activeImage) }}
+              source={{ uri: Platform.OS == "android" ? encodeURL(activeImage) : activeImage }}
               style={styles.image}
               resizeMode="contain"
               onError={(e) => console.error("Image loading error:", e.nativeEvent.error)}
