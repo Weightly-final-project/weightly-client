@@ -24,6 +24,7 @@ import {
   getFilenameFromS3Uri,
   formatDate,
   convertToStandartSize,
+  encodeURL,
 } from "../utils/functions";
 import { useAuth } from "../utils/AuthContext";
 import { AnnotatedImage } from "./features/camera/types";
@@ -346,7 +347,7 @@ export default function PredictionScreen() {
         <View style={styles.imageContainer}>
           {activeImage ? (
             <Image
-              source={{ uri: encodeURI(activeImage) }}
+              source={{ uri: encodeURL(activeImage) }}
               style={styles.image}
               resizeMode="contain"
               onError={(e) => console.error("Image loading error:", e.nativeEvent.error)}
