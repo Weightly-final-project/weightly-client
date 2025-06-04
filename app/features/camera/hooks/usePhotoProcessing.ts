@@ -19,6 +19,7 @@ interface UsePhotoProcessingProps {
   capturedPhotos: CapturedPhoto[];
   splits: Split;
   setPictureStatus: (status: string) => void;
+  setStatusProgress: (progress: number) => void;
   setIsProcessing: (isProcessing: boolean) => void;
   setShowManualBoundingBox: (show: boolean) => void;
   setCapturedPhotos: (photos: CapturedPhoto[]) => void;
@@ -31,6 +32,7 @@ export function usePhotoProcessing({
   capturedPhotos,
   splits,
   setPictureStatus,
+  setStatusProgress,
   setIsProcessing,
   setShowManualBoundingBox,
   setCapturedPhotos,
@@ -52,6 +54,7 @@ export function usePhotoProcessing({
       logger.info('Starting photo processing', { photoIndex: currentPhotoIndex });
       setIsProcessing(true);
       setPictureStatus("Uploading image...");
+      setStatusProgress(1);
 
       const res1 = await uploadFile(
         photo.photo.uri,
@@ -78,6 +81,7 @@ export function usePhotoProcessing({
       } as const;
 
       setPictureStatus("Processing image...");
+      setStatusProgress(2);
       logger.info('Starting object detection');
 
       const [prediction, reference_prediction] = await Promise.all([
@@ -140,6 +144,7 @@ export function usePhotoProcessing({
         ];
 
         setPictureStatus("Analyzing objects...");
+        setStatusProgress(3);
         logger.info('Calculating sizes with reference object');
 
         const predictions_with_size = await referenceCalculatorMutation.mutateAsync({
@@ -151,6 +156,7 @@ export function usePhotoProcessing({
         });
 
         setPictureStatus("Generating annotated image...");
+        setStatusProgress(4);
 
         const pred1 = await outputImageMutation.mutateAsync({
           user: userId,

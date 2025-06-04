@@ -57,6 +57,9 @@ function CameraScreenContent() {
   const {
     pictureStatus,
     setPictureStatus,
+    maxProgress,
+    statusProgress,
+    setStatusProgress,
     isProcessing,
     setIsProcessing,
     showManualBoundingBox,
@@ -226,6 +229,7 @@ function CameraScreenContent() {
     capturedPhotos,
     splits,
     setPictureStatus,
+    setStatusProgress,
     setIsProcessing,
     setShowManualBoundingBox,
     setCapturedPhotos,
@@ -375,7 +379,6 @@ function CameraScreenContent() {
             imageUri: encodedUri,
             imageWidth: photo.width, 
             imageHeight: photo.height,
-            mode: 'manual_capture', 
             currentPhotoIndexForAnnotation: currentPhotoIndex.toString(),
             photosToCarryForward: Buffer.from(JSON.stringify(updatedPhotos)).toString("base64")
           }
@@ -387,7 +390,6 @@ function CameraScreenContent() {
           paramsSet: {
             hasImageUri: !!encodedUri,
             imageUriLength: encodedUri.length,
-            mode: 'manual_capture',
             index: currentPhotoIndex.toString()
           }
         });
@@ -482,6 +484,8 @@ function CameraScreenContent() {
         cameraRef={cameraRef as React.RefObject<CameraView>}
         mode={mode}
         splits={splits}
+        maxProgress={maxProgress}
+        statusProgress={statusProgress}
         isProcessing={isProcessing}
         pictureStatus={pictureStatus}
         isGyroValid={isGyroValid}
@@ -523,7 +527,6 @@ function CameraScreenContent() {
               pathname: '/ImageAnnotationScreen', 
               params: {
                 imageUri: encodedUri,
-                mode: 'manual_capture', 
                 currentPhotoIndexForAnnotation: currentPhotoIndex.toString(),
                 photosToCarryForward: Buffer.from(JSON.stringify(updatedPhotos)).toString("base64")
               }

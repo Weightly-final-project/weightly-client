@@ -22,6 +22,8 @@ interface CameraUIProps {
   cameraRef: React.RefObject<CameraView>;
   mode: PhotoMode;
   splits: Split;
+  maxProgress: number;
+  statusProgress: number;
   isProcessing: boolean;
   pictureStatus: string;
   isGyroValid: boolean;
@@ -43,6 +45,8 @@ export function CameraUI({
   isProcessing,
   pictureStatus,
   isGyroValid,
+  maxProgress,
+  statusProgress,
   isOrientationValid,
   capturedPhotos,
   currentPhotoIndex,
@@ -136,7 +140,7 @@ export function CameraUI({
         {isProcessing && (
           <View style={styles.processingContainer}>
             <ActivityIndicator size="large" color="#FFF" />
-            <Text style={styles.processingText}>{pictureStatus}</Text>
+            <Text style={styles.processingText}>{statusProgress} out of {maxProgress}</Text>
           </View>
         )}
       </View>

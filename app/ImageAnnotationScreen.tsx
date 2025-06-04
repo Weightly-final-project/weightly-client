@@ -31,7 +31,6 @@ const { useOutput_imageMutation, useReference_calculatorMutation } = hooks;
 export default function ImageAnnotationScreen() {
   const {
     imageUri,
-    mode,
     currentPhotoIndexForAnnotation, // Received from CameraScreen
     processedImageUri: navProcessedImageUri, // Received from CameraScreen
     photosToCarryForward, // Received from CameraScreen
@@ -42,7 +41,6 @@ export default function ImageAnnotationScreen() {
     imageUri: string;
     imageWidth: string;
     imageHeight: string;
-    mode?: 'reference' | 'manual_capture';
     currentPhotoIndexForAnnotation?: string;
     processedImageUri?: string;
     photosToCarryForward?: string; // Base64 encoded string of CapturedPhoto[]
@@ -52,6 +50,11 @@ export default function ImageAnnotationScreen() {
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [pictureStatus, setPictureStatus] = useState<string>("Uploading image...");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [statusProgress, setStatusProgress] = useState<number>(0);
+  const mode = boxes.length > 0 ? 'wood' : 'rubiks';
+
+  const maxProgress = 3;
+
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({
     width: 0,
     height: 0,
@@ -197,7 +200,7 @@ export default function ImageAnnotationScreen() {
   const handleDone = async () => {
     // For 'reference' mode, ensure exactly one box is drawn.
     // This check does not apply to 'manual_capture' mode.
-    if (mode === 'reference' && boxes.length !== 1) {
+    if (mode === 'rubiks' && boxes.length !== 1) {
       Alert.alert(
         "Invalid Selection",
         "Please mark exactly one reference object (Rubik's cube).",
@@ -207,7 +210,7 @@ export default function ImageAnnotationScreen() {
     }
     try {
       setIsProcessing(true);
-      setPictureStatus("Processing image...");
+      setStatusProgress(1);
 
       const res1 = await uploadFile(
         imageUri,
@@ -216,7 +219,8 @@ export default function ImageAnnotationScreen() {
 
       logger.info('Image uploaded', { s3Key: res1.Key });
 
-      setPictureStatus("Generating annotated image...");
+      setPictureStatus("Analyzing objects...");
+      setStatusProgress(2);
 
       const predictions = boxes.map(bbox => {
         const box = convertToImageCoordinates(bbox);
@@ -239,6 +243,9 @@ export default function ImageAnnotationScreen() {
         focal_length_px: 10,
         reference_height_px: reference_object.bbox[3] - reference_object.bbox[1],
       });
+
+      setPictureStatus("Generating annotated image...");
+      setStatusProgress(3);
 
       const pred1 = await outputImageMutation.mutateAsync({
         user: userId,
@@ -436,15 +443,24 @@ export default function ImageAnnotationScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>
-            {mode === 'reference'
+            {mode === 'rubiks'
               ? "Mark the Rubik's cube"
-              : "Draw Bounding Boxes"}
+              : "Mark the Wood stack"}
           </Text>
-          {mode === 'reference' && (
+        </View>
+        <View>
+          {mode === 'rubiks' ? (
             <Text style={styles.subtitle}>
               Draw a box around the Rubik's cube for size reference
             </Text>
+          ) : (
+            <Text style={styles.subtitle}>
+              Draw a box around the Wood for geting size and weight
+            </Text>
           )}
+          <Text style={styles.subtitle}>
+            Tap and drag to draw a box.
+          </Text>
         </View>
         <PanGestureHandler
           onGestureEvent={gestureHandler}
@@ -494,7 +510,7 @@ export default function ImageAnnotationScreen() {
       {isProcessing && (
         <View style={styles.processingContainer}>
           <ActivityIndicator size="large" color="#FFF" />
-          <Text style={styles.processingText}>{pictureStatus}</Text>
+          <Text style={styles.processingText}>{statusProgress} out of {maxProgress}</Text>
         </View>
       )}
     </GestureHandlerRootView>
