@@ -73,9 +73,10 @@
       "router": {
         "origin": false
       },
-      "eas": {
-        "projectId": "dd10c0eb-9704-4af2-b4f8-d26b51f8278c"
+       "eas": {
+        "projectId": "5a37e9c6-03da-4b87-ae44-88554c31adba"
       }
-    }
+    },
+    "owner": "orbasker"
   }
 }
