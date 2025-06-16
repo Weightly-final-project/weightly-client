@@ -4,47 +4,88 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
 ## Get started
 
-1. Install dependencies
+### Install dependencies
 
    ```bash
    npm install
    ```
 
-2. Start the app
+### Start the app
 
    ```bash
     npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+### build app
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+#### android
+   ##### for windows
+   make sure the path of your project isn't to long i recommand puting the project at c drive and changing the name to somthing short like client
+   ##### prebuild
+   ```bash
+   npx expo prebuild -p android
+   ```
+   ##### create keystore
+   ```bash
+   keytool -genkeypair -v -storetype PKCS12 -keystore android\app\weightly-client.keystore -alias WeightlyClientKey -keyalg RSA -keysize 2048 -validity 10000 -storepass WeightlyStorePass1234 -keypass WeightlyStorePass1234 -dname "CN=Weightly-client, OU=IL, O=Weightly, L=Tel Aviv, ST=IL, C=IL"
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   ##### config keystore
 
-## Get a fresh project
+   edit in the end of android/gradle.properties add those line
+   ```bash
+   MYAPP_RELEASE_STORE_FILE=weightly-client.keystore
+   MYAPP_RELEASE_KEY_ALIAS=WeightlyClientKey
+   MYAPP_RELEASE_STORE_PASSWORD=WeightlyStorePass1234
+   MYAPP_RELEASE_KEY_PASSWORD=WeightlyStorePass1234
+   ```
 
-When you're ready, run:
+   make sure that MYAPP_RELEASE_STORE_PASSWORD and MYAPP_RELEASE_KEY_PASSWORD are matching the password you put in -storepass and -keypass and that -storepass are the same as -keypass.
 
-```bash
-npm run reset-project
-```
+   edit android/app/build.gradel
+   add this to it
+   ```json
+   android {
+      // keep the same
+      signingConfigs {
+        debug {
+         // keep the same
+        }
+        // add this
+        release {
+            storeFile file(MYAPP_RELEASE_STORE_FILE)
+            storePassword MYAPP_RELEASE_STORE_PASSWORD
+            keyAlias MYAPP_RELEASE_KEY_ALIAS
+            keyPassword MYAPP_RELEASE_KEY_PASSWORD
+        }
+      }
+      buildTypes {
+        debug {
+            // keep the same
+        }
+        // add this
+        release {
+            signingConfig signingConfigs.release
+            shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+        }
+      }
+   }
+   ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+   ##### runing build
 
-## Learn more
+   ```bash
+   cd android
+   .\gradlew clean assembleRelease 
+   ```
 
-To learn more about developing your project with Expo, look at the following resources:
+   ##### apk directory
+   ```bash
+   cd android/app/build/outputs/apk/release/app-release.apk
+   ```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+   
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
