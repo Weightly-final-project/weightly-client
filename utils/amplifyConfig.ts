@@ -2,6 +2,7 @@ import { Amplify } from 'aws-amplify';
 import { cognitoUserPoolsTokenProvider } from '@aws-amplify/auth/cognito';
 import * as AmplifyAuth from '@aws-amplify/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import 'react-native-get-random-values';
 
 // Add debug logging
 const debugLog = (message: string, ...args: any[]) => {
