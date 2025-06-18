@@ -11,6 +11,7 @@ const {
   useOutput_imageMutation,
   useReference_calculatorMutation,
   useBbox_refinementMutation,
+  usePredict_countMutation
 } = hooks;
 
 interface UsePhotoProcessingProps {
@@ -43,6 +44,7 @@ export function usePhotoProcessing({
   const outputImageMutation = useOutput_imageMutation();
   const referenceCalculatorMutation = useReference_calculatorMutation();
   const bboxRefinementMutation = useBbox_refinementMutation();
+  const predictCountMutation = usePredict_countMutation();
 
   const processPhoto = useCallback(async (photo: PhotoToProcess) => {
     if (!photo.photo) {
@@ -139,6 +141,11 @@ export function usePhotoProcessing({
 
         const box = bigBboxCalculator(pineThreasholdPredictions);
 
+        const wood_plank_count = await predictCountMutation.mutateAsync({
+          s3_uri: `s3://weighlty/${res1.Key}`,
+          box: [box.minX, box.minY, box.maxX, box.maxY]
+        });
+
         const parsedPredictions = [...pineThreasholdPredictions, 
           {bbox: [box.minX, box.minY, box.maxX, box.maxY], object: "pine", confidence: 1.0}
         ];
@@ -187,7 +194,8 @@ export function usePhotoProcessing({
               predictions: [
                 ...Array.from(predictions_with_size, x => ({ ...x })),
                 reference_object
-              ]
+              ],
+              wood_plank_count: wood_plank_count.yolo_count,
             },
           };
 

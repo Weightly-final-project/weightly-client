@@ -5,50 +5,66 @@ const API = {
   bbox_refinement: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/bbox_refinement",
     method: "POST",
-    requestExample: { 
-      bbox: [] as readonly number[], 
+    requestExample: {
+      bbox: [] as readonly number[],
       image_s3_uri: String(),
     },
-    responseExample: { 
-      bbox: [] as readonly number[], 
+    responseExample: {
+      bbox: [] as readonly number[],
       image_s3_uri: String(),
     }
   },
   predict: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predict_pine",
     method: "POST",
-    requestExample: { 
-      user: String(), 
+    requestExample: {
+      user: String(),
       image_s3_uri: String(),
       model_s3_uri: String(),
       x_splits: Number(),
       y_splits: Number(),
     },
-    responseExample: { 
-      user: String(), 
-      image_s3_uri: String(), 
+    responseExample: {
+      user: String(),
+      image_s3_uri: String(),
       predictions: [] as readonly any[] // Changed from prediction to predictions
+    }
+  },
+  predict_count: {
+    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predictions/count",
+    method: "POST",
+    requestExample: {
+      s3_uri: String(),
+      box: [] as readonly number[],
+    },
+    responseExample: {
+      hough_count: Number(),
+      yolo_count: Number(),
+      gap_estimation: Number(),
+      horizontal_gaps: Number(),
+      vertical_gaps: Number(),
+      hough_minus_yolo: Number()
     }
   },
   output_image: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/output-image-creator",
     method: "POST",
-    requestExample: { 
-      user: String(), 
+    requestExample: {
+      user: String(),
       image_s3_uri: String(),
       predictions: [] as readonly any[]
     },
     responseExample: {
-      user: String(), 
+      user: String(),
       image_s3_uri: String(),
-      predictions: [] as readonly any[], 
-      annotated_s3_uri: String() 
+      predictions: [] as readonly any[],
+      annotated_s3_uri: String()
     }
   },
   reference_calculator: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/reference_calculator",
     method: "POST",
-    requestExample: { 
+    requestExample: {
       predictions: [] as readonly any[],
       reference_width_cm: Number(), // 10
       reference_width_px: Number(), // 
@@ -68,15 +84,15 @@ const API = {
   dynmo_create: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predictions",
     method: "POST",
-    requestExample: { 
-      user: String(), 
-      image_s3_uri: String(), 
+    requestExample: {
+      user: String(),
+      image_s3_uri: String(),
       predictions: [] as readonly any[],
-      annotated_s3_uri: String() 
+      annotated_s3_uri: String()
     },
-    responseExample: { 
+    responseExample: {
       message: String(),
-      prediction_id: String(), 
+      prediction_id: String(),
     }
   },
   dynmo_delete: {
@@ -93,7 +109,7 @@ const API = {
   dynmo_get: {
     url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predictions",
     method: "GET",
-    requestExample: { 
+    requestExample: {
       "user": String(),
     },
     responseExample: [{
@@ -115,12 +131,12 @@ export type ResponseType<T extends EndpointKeys> = typeof API[T]['responseExampl
 
 // Base fetcher function
 const fetchApi = async <T extends EndpointKeys>(
-  endpoint: T, 
+  endpoint: T,
   data: RequestType<T>
 ): Promise<ResponseType<T>> => {
   const controller = new AbortController()
   // 5 second timeout:
-  const timeoutId = setTimeout(() => controller.abort(), 5000* 60); // 5 minutes
+  const timeoutId = setTimeout(() => controller.abort(), 5000 * 60); // 5 minutes
 
   let response;
   if (API[endpoint].method === "POST") {
@@ -138,18 +154,18 @@ const fetchApi = async <T extends EndpointKeys>(
       signal: controller.signal,
     });
   } else {
-    response = await fetch(API[endpoint].url + "/" + (data as Record<string, string>)["user"].replace(' ','%20'), {
+    response = await fetch(API[endpoint].url + "/" + (data as Record<string, string>)["user"].replace(' ', '%20'), {
       method: API[endpoint].method,
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
     });
   }
-  
+
   if (!response.ok) {
     console.error(`Error fetching ${API[endpoint].url}:`, data, response.status, await response.json());
     throw new Error(`API error: ${response.status} ${JSON.stringify(await response.json())}`);
   }
-  
+
   return response.json();
 };
 
@@ -163,8 +179,8 @@ function createMutationHook<T extends EndpointKeys>(endpoint: T) {
 // Create a mapped type for all hooks
 type ApiHooks = {
   [K in EndpointKeys as `use${Capitalize<string & K>}Mutation`]: () => ReturnType<typeof useMutation<
-    ResponseType<K>, 
-    Error, 
+    ResponseType<K>,
+    Error,
     RequestType<K>
   >>
 };
