@@ -26,7 +26,7 @@ interface Box {
 
 const PAN_ACTIVE_OFFSET_THRESHOLD = 15;
 
-const { useOutput_imageMutation, useReference_calculatorMutation } = hooks;
+const { useOutput_imageMutation, useReference_calculatorMutation, usePredict_countMutation } = hooks;
 
 export default function ImageAnnotationScreen() {
   const {
@@ -62,6 +62,7 @@ export default function ImageAnnotationScreen() {
 
   const outputImageMutation = useOutput_imageMutation();
   const referenceCalculatorMutation = useReference_calculatorMutation();
+  const predictCountMutation = usePredict_countMutation();
 
   const imageSize = {
     width: parseInt(imageWidth || '0', 10),
@@ -244,6 +245,11 @@ export default function ImageAnnotationScreen() {
         reference_height_px: reference_object.bbox[3] - reference_object.bbox[1],
       });
 
+      const wood_plank_count = await predictCountMutation.mutateAsync({
+        s3_uri: `s3://weighlty/${res1.Key}`,
+        box: predictions.find(pred => pred.object === "pine")?.bbox || [0, 0, 1, 1]
+      });
+
       setPictureStatus("Generating annotated image...");
       setStatusProgress(3);
 
@@ -283,7 +289,8 @@ export default function ImageAnnotationScreen() {
           mode: 'manual_capture', // Pass back the mode it received
           returnedPhotoIndex: currentPhotoIndexForAnnotation, // Send back the index of the photo that was annotated
           existingPhotos: photosToCarryForward, // Pass back the photo state
-          photoIndex: currentPhotoIndexForAnnotation // Crucial for CameraScreen's useCameraState to set initialPhotoIndex
+          photoIndex: currentPhotoIndexForAnnotation, // Crucial for CameraScreen's useCameraState to set initialPhotoIndex
+          wood_plank_count: wood_plank_count.yolo_count || 0,
         },
       });
     } catch (error) {
