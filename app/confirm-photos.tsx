@@ -66,7 +66,8 @@ export default function ConfirmPhotosScreen() {
         image_s3_uri: p.annotatedImage?.image_s3_uri || "",
         annotated_s3_uri: p.annotatedImage?.annotated_s3_uri || "",
         download_annotated_s3_uri:  p.annotatedImage?.download_annotated_s3_uri || "",
-        predictions: p.annotatedImage?.predictions
+        predictions: p.annotatedImage?.predictions,
+        wood_plank_count: p.annotatedImage?.wood_plank_count || 0,
       })),
     };
 

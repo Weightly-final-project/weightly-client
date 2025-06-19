@@ -151,7 +151,8 @@ function CameraScreenContent() {
             image_s3_uri: params.originalImageUri as string, // Original URI
             annotated_s3_uri: params.processedImageUri as string,      // URI that was annotated (can be same as original)
             download_annotated_s3_uri: (params.DownloadedProcessedImageUri as string) || (params.processedImageUri as string), // Assuming this is the same for now
-            predictions: boxes // The bounding boxes from annotation
+            predictions: boxes, // The bounding boxes from annotation
+            wood_plank_count: params.wood_plank_count ? parseInt(params.wood_plank_count as string) : 0, // Ensure this is a number
           }
         };
         setCapturedPhotos(updatedPhotos);

@@ -13,6 +13,7 @@ export interface AnnotatedImage {
     annotated_s3_uri: string;
     download_annotated_s3_uri?: string;
     predictions: any[];
+    wood_plank_count?: number;
 }
 
 export interface CapturedPhoto {

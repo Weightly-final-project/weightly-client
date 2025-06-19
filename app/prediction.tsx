@@ -148,6 +148,8 @@ export default function PredictionScreen() {
   
   const woodCount = useMemo(() => {
     if (photos && photos.length > 0 && activePhotoIndex < photos.length) {
+      if ('wood_plank_count' in photos[activePhotoIndex])
+        return photos[activePhotoIndex].wood_plank_count;
       return photos[activePhotoIndex].predictions.length - 1 || 0;
     }
     return 0;
