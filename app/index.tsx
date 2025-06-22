@@ -16,10 +16,12 @@ import PredictionItem from "../components/prediction-card";
 import AppHeader from "../components/AppHeader";
 import { getFiles } from "../utils/s3";
 import { useAuth } from "../utils/AuthContext";
-const { useDynmo_getMutation } = hooks;
+import FeedbackForm from "../components/FeedbackForm";
+const { useDynmo_getMutation, useFeedbackMutation } = hooks;
 
 export default function PredictionListScreen() {
   const dynmo_getMutation = useDynmo_getMutation();
+  const feedbackMutation = useFeedbackMutation();
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const [predictions, setPredictions] = useState<
@@ -28,6 +30,7 @@ export default function PredictionListScreen() {
   const [loading, setLoading] = useState(true);
   const [fetchInProgress, setFetchInProgress] = useState(false);
   const initialFetchCompleted = useRef(false);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   
   // Memoize userId so it's stable between renders
   const userId = useMemo(() => 
@@ -175,6 +178,40 @@ export default function PredictionListScreen() {
     );
   };
 
+  const handleFeedbackSubmit = (feedback: any) => {
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to submit feedback.");
+      return;
+    }
+
+    const payload = {
+      user_id: user.username,
+      feedback: {
+        ...feedback,
+        comments: feedback.comments || "",
+      },
+    };
+
+    feedbackMutation.mutate(payload, {
+      onSuccess: () => {
+        setShowFeedbackForm(false);
+        Alert.alert(
+          "Thank You!",
+          "Your feedback has been submitted successfully.",
+          [{ text: "OK" }]
+        );
+      },
+      onError: (error) => {
+        console.error("Error submitting feedback:", error);
+        Alert.alert(
+          "Error",
+          "Could not submit your feedback. Please try again.",
+          [{ text: "OK" }]
+        );
+      },
+    });
+  };
+
   // Show loading indicator while authentication is checking
   if (authLoading) {
     return (
@@ -187,7 +224,7 @@ export default function PredictionListScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Predictions" />
+      <AppHeader title="Predictions" onFeedbackPress={() => setShowFeedbackForm(true)} />
 
       <View style={styles.contentContainer}>
         <View style={styles.actionContainer}>
@@ -245,6 +282,12 @@ export default function PredictionListScreen() {
           </View>
         )}
       </View>
+      <FeedbackForm
+        visible={showFeedbackForm}
+        onClose={() => setShowFeedbackForm(false)}
+        onSubmit={handleFeedbackSubmit}
+        isSubmitting={feedbackMutation.isPending}
+      />
     </View>
   );
 }

@@ -29,6 +29,7 @@ import {
 import { useAuth } from "../utils/AuthContext";
 import { AnnotatedImage } from "./features/camera/types";
 import { set } from "date-fns";
+import FeedbackForm from "../components/FeedbackForm";
 
 const { useDynmo_createMutation } = hooks;
 
@@ -291,12 +292,26 @@ export default function PredictionScreen() {
 
   // Function to format size as cm (with fallback)
   const formatSize = (value: number) => {
-    if (!value || value <= 0) return "N/A";
-    return `${value.toFixed(2)} cm`;
+    return value > 0 ? `${value.toFixed(1)} cm` : "N/A";
+  };
+
+  const handleFeedbackSubmit = (feedback: any) => {
+    console.log('Feedback submitted:', feedback);
+    // Here you can send the feedback to your backend or analytics service
+    Alert.alert(
+      'Thank You!',
+      'Your feedback has been submitted successfully.',
+      [{ text: 'OK' }]
+    );
   };
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerShown: false,
+        }}
+      />
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -305,7 +320,7 @@ export default function PredictionScreen() {
           <Icon name="arrow-back" type="material" color="#fff" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Prediction Details</Text>
-        <View></View>
+        <View style={styles.headerRightPlaceholder} />
       </View>
 
       <Text style={styles.pullToRefreshHint}>Pull down to refresh</Text>
@@ -621,13 +636,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "white",
   },
-  shareButton: {
+  headerRightPlaceholder: {
     width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   scrollView: {
     flex: 1,
