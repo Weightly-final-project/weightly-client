@@ -96,7 +96,7 @@ const API = {
     }
   },
   dynmo_delete: {
-    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predictions/delete",
+    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/predictions",
     method: "DELETE",
     requestExample: {
       user: String(),
@@ -121,7 +121,27 @@ const API = {
       "updated_at": String(),
       "predictions": [] as readonly any[],
     }] as readonly any[]
-  }
+  },
+  feedback: {
+    url: "https://4mf6hjno08.execute-api.eu-west-1.amazonaws.com/feedback",
+    method: "POST",
+    requestExample: {
+      user_id: String(),
+      feedback: {
+        easeOfUse: Number(),
+        visualDesign: Number(),
+        navigation: Number(),
+        performance: Number(),
+        overallExperience: Number(),
+        comments: String(),
+      }
+    },
+    responseExample: {
+      success: Boolean(),
+      feedback_id: String(),
+      message: String(),
+    }
+  },
 } as const;
 
 // Infer types from example objects
@@ -144,29 +164,31 @@ const fetchApi = async <T extends EndpointKeys>(
       method: API[endpoint].method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-      signal: controller.signal as AbortSignal,
+      signal: controller.signal as any,
     });
   } else if (API[endpoint].method === "DELETE") {
-    response = await fetch(`${API[endpoint].url}`, {
-      method: API[endpoint].method,
+    const { user, prediction_id } = data as { user: string; prediction_id: string };
+    const fullUrl = `${API[endpoint].url}/${encodeURIComponent(user)}/${encodeURIComponent(prediction_id)}`;
+    response = await fetch(fullUrl, {
+      method: "DELETE",
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-      signal: controller.signal,
+      signal: controller.signal as any,
     });
   } else {
     response = await fetch(API[endpoint].url + "/" + (data as Record<string, string>)["user"].replace(' ', '%20'), {
       method: API[endpoint].method,
       headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
+      signal: controller.signal as any,
     });
   }
 
   if (!response.ok) {
-    console.error(`Error fetching ${API[endpoint].url}:`, data, response.status, await response.json());
-    throw new Error(`API error: ${response.status} ${JSON.stringify(await response.json())}`);
+    const errorBody = await response.json().catch(() => ({ message: 'Could not parse error body' }));
+    console.error(`Error fetching ${API[endpoint].url}:`, data, response.status, errorBody);
+    throw new Error(`API error: ${response.status} ${JSON.stringify(errorBody)}`);
   }
 
-  return response.json();
+  return await response.json() as ResponseType<T>;
 };
 
 // Generic mutation hook factory

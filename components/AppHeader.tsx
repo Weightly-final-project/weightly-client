@@ -16,12 +16,14 @@ type AppHeaderProps = {
   title: string;
   showBack?: boolean;
   showLogout?: boolean;
+  onFeedbackPress?: () => void;
 };
 
 export default function AppHeader({
   title,
   showBack = false,
   showLogout = true,
+  onFeedbackPress,
 }: AppHeaderProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -40,7 +42,14 @@ export default function AppHeader({
         <Text style={styles.title}>{title}</Text>
       </View>
 
-      {showLogout && user && <LogoutButton variant="icon" />}
+      <View style={styles.rightContainer}>
+        {onFeedbackPress && (
+          <TouchableOpacity onPress={onFeedbackPress} style={styles.feedbackButton}>
+            <Ionicons name="chatbubble-ellipses-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        )}
+        {showLogout && user && <LogoutButton variant="icon" />}
+      </View>
     </View>
   );
 }
@@ -68,5 +77,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     color: "#fff",
+  },
+  rightContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  feedbackButton: {
+    marginRight: 16,
   },
 });
