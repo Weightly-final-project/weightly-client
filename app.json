@@ -4,7 +4,7 @@
     "slug": "Weightly-client",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/LogoWeightly.jpeg",
+    "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -18,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
